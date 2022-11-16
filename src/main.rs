@@ -3,10 +3,9 @@ mod repository;
 
 #[macro_use]
 extern crate rocket;
-use models::umbrella_model::Umbrella;
-use repository::{MongoRepo::MongoRepo, SurrealRepo::SurrealRepo};
+use repository::SurrealRepo::SurrealRepo;
 use rocket::{http::Status, serde::json::Json, State};
-use surrealdb::{sql::Value};
+use surrealdb::sql::Value;
 
 pub mod response_types {
     #[derive(Responder)]
@@ -30,15 +29,6 @@ fn teapot() -> JSONResponse {
     return JSONResponse("{\"api\": \"hello\"}");
 }
 
-#[get("/umbrellas")]
-fn get_umbrellas(db: &State<MongoRepo>) -> Result<Json<Vec<Umbrella>>, Status> {
-    let umbrellas = db.get_umbrellas();
-    return match umbrellas {
-        Ok(umbrellas) => Ok(Json(umbrellas)),
-        Err(_) => Err(Status::InternalServerError),
-    };
-}
-
 #[get("/addItem")]
 async fn add_surreal_item(
     db: &State<SurrealRepo>,
@@ -57,9 +47,7 @@ async fn add_surreal_item(
 }
 
 #[get("/getItems")]
-async fn get_surreal_items(
-    db: &State<SurrealRepo>,
-) -> Result<serde_json::Value, Status> {
+async fn get_surreal_items(db: &State<SurrealRepo>) -> Result<serde_json::Value, Status> {
     let query = db.query("SELECT * FROM person").await;
     return match query {
         Ok(query) => {
@@ -69,17 +57,16 @@ async fn get_surreal_items(
             } else {
                 panic!("DB did not return")
             }
-        },
+        }
         Err(_) => Err(Status::InternalServerError),
     };
 }
 
 #[launch]
 async fn rocket() -> _ {
-    let db = MongoRepo::init();
     let surreal = SurrealRepo::init("test", "test").await;
-    rocket::build()
-        .manage(db)
-        .manage(surreal)
-        .mount("/api", routes![index, teapot, get_umbrellas, add_surreal_item, get_surreal_items])
+    rocket::build().manage(surreal).mount(
+        "/api",
+        routes![index, teapot, add_surreal_item, get_surreal_items],
+    )
 }

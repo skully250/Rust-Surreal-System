@@ -1,11 +1,13 @@
-#[macro_use]
-extern crate rocket;
+use rocket::{State, http::Status};
 
-use repository::{SurrealRepo::SurrealRepo};
+use crate::{SurrealRepo};
 
 #[get("/products")]
-pub fn get_products(db: &State<SurrealRepo>) -> Result<Json<Vec<Product>>, Status> {
+pub fn get_products(db: &State<SurrealRepo>) -> Result<serde_json::Value, Status> {
+    return Ok(serde_json::json!("Not yet implemented"));
 }
 
 #[post("/products")]
-pub fn add_products() -> Result<Json<Vec<Product>>, Status> {}
+pub fn add_products() -> Result<serde_json::Value, Status> {
+    return Ok(serde_json::json!("Not yet implemented"))
+}

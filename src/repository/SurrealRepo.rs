@@ -12,6 +12,18 @@ impl SurrealRepo {
         return SurrealRepo { ds, ses }
     }
 
+    pub async fn create(&self, name: &str, content: serde_json::Value) -> Result<Vec<Response>, surrealdb::Error> {
+        let query = format!("CREATE {name} CONTENT {content}");
+        let res = self.ds.execute(&query, &self.ses, None, false).await;
+        return res;
+    }
+
+    pub async fn update(&self, name: &str, content: serde_json::Value) -> Result<Vec<Response>, surrealdb::Error> {
+        let query = format!("UPDATE {name} CONTENT {content}");
+        let res = self.ds.execute(&query, &self.ses, None, false).await;
+        return res;
+    }
+
     pub async fn query(&self, query: &str) -> Result<Vec<Response>, surrealdb::Error> {
         let res = self.ds.execute(query, &self.ses, None, false).await;
         return res;

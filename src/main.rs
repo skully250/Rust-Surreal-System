@@ -1,10 +1,13 @@
 mod models;
 mod repository;
+mod routes;
+mod controllers;
 
 #[macro_use]
 extern crate rocket;
 use repository::SurrealRepo::SurrealRepo;
 use rocket::{http::Status, serde::json::Json, State};
+use routes::Orders;
 use surrealdb::sql::Value;
 
 pub mod response_types {
@@ -68,5 +71,5 @@ async fn rocket() -> _ {
     rocket::build().manage(surreal).mount(
         "/api",
         routes![index, teapot, add_surreal_item, get_surreal_items],
-    )
+    ).mount("/api/orders", Orders::orderRoutes())
 }

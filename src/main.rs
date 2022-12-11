@@ -5,7 +5,7 @@ mod controllers;
 
 #[macro_use]
 extern crate rocket;
-use repository::SurrealRepo::SurrealRepo;
+use repository::SurrealRepo::{SurrealRepo, DBConfig};
 use rocket::{http::Status, serde::json::Json, State};
 use routes::Orders;
 use surrealdb::sql::Value;
@@ -28,8 +28,19 @@ fn index() -> TextResponse {
 }
 
 #[get("/test")]
-fn teapot() -> JSONResponse {
-    return JSONResponse("{\"api\": \"hello\"}");
+async fn teapot(db: &State<SurrealRepo>) -> Result<serde_json::Value, Status> {
+    let query = db.query("SELECT ->created->order.* as orders FROM user:fae").await;
+    return match query {
+        Ok(query) => {
+            let query_result = query[0].output().unwrap();
+            if let Value::Array(rows) = query_result {
+                Ok(serde_json::json!(rows))
+            } else {
+                panic!("DB did not return");
+            }
+        }
+        Err(_) => Err(Status::InternalServerError)
+    }
 }
 
 #[get("/addItem")]
@@ -67,9 +78,14 @@ async fn get_surreal_items(db: &State<SurrealRepo>) -> Result<serde_json::Value,
 
 #[launch]
 async fn rocket() -> _ {
-    let surreal = SurrealRepo::init("test", "test").await;
+    let config = DBConfig{
+        path: "memory",
+        ns: "test",
+        db: "test"
+    };
+    let surreal = SurrealRepo::init(config).await;
     rocket::build().manage(surreal).mount(
         "/api",
         routes![index, teapot, add_surreal_item, get_surreal_items],
-    ).mount("/api/orders", Orders::orderRoutes())
+    ).mount("/api/orders", Orders::order_routes())
 }

@@ -64,6 +64,11 @@ async fn get_surreal_items(db: &State<SurrealRepo>) -> Result<serde_json::Value,
     };
 }
 
+#[catch(422)]
+fn mangled_data() {
+    //Todo: Send back server message about unprocessable data here
+}
+
 #[launch]
 async fn rocket() -> _ {
     let config = DBConfig{

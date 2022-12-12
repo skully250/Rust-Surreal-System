@@ -26,7 +26,7 @@ pub struct Product {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ModelDTO {
-    id: Id,
+    id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -2,6 +2,7 @@ mod models;
 mod repository;
 mod routes;
 mod controllers;
+mod util;
 
 #[macro_use]
 extern crate rocket;
@@ -10,21 +11,8 @@ use rocket::{http::Status, serde::json::Json, State};
 use routes::Orders;
 use surrealdb::sql::Value;
 
-pub mod response_types {
-    #[derive(Responder)]
-    #[response(status = 200, content_type = "text")]
-    pub struct TextResponse(pub &'static str);
-
-    #[derive(Responder)]
-    #[response(status = 200, content_type = "json")]
-    pub struct JSONResponse(pub &'static str);
-}
-
-use response_types::{JSONResponse, TextResponse};
-
 #[get("/")]
-fn index() -> TextResponse {
-    return TextResponse("Hello World");
+fn index() {
 }
 
 #[get("/test")]
@@ -62,7 +50,7 @@ async fn add_surreal_item(
 
 #[get("/getItems")]
 async fn get_surreal_items(db: &State<SurrealRepo>) -> Result<serde_json::Value, Status> {
-    let query = db.query("SELECT * FROM person").await;
+    let query = db.find(None, "person").await;
     return match query {
         Ok(query) => {
             let query_result = query[0].output().unwrap();

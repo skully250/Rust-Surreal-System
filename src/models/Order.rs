@@ -20,7 +20,7 @@ pub struct Order {
 impl Order {
     async fn get_created_by(db: &SurrealRepo, orderNo: u32) -> Result<Option<User>, surrealdb::Error> {
         let order_id = format!("orders:{orderNo}");
-        let results = db.find("->created->user.*", &order_id).await;
+        let results = db.find(Some("->created->user.*"), &order_id).await;
         return match results {
             Ok(find_output) => {
                 let find_result = find_output[0].output().unwrap();
@@ -40,5 +40,5 @@ impl Order {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OrderDTO {
     customer: String,
-    products: Vec<String>
+    products: Vec<super::Product::ProductDTO>
 }

@@ -1,17 +1,12 @@
 use rocket::{http::Status, Route, State, serde::json::Json};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize};
 use surrealdb::sql::Value;
 
-use crate::{controllers, SurrealRepo, models};
-
-#[derive(Debug, Serialize)]
-struct ServerMessage<'a> {
-    message: &'a str
-}
+use crate::{controllers, SurrealRepo, models, util::responders};
 
 #[derive(Debug, Deserialize)]
 struct OrderDetails {
-    orderNo: i32,
+    order_no: u32,
     order: models::Order::OrderDTO
 }
 
@@ -37,15 +32,15 @@ async fn get_orders(db: &State<SurrealRepo>) -> Result<serde_json::Value, Status
 }
 
 #[post("/", format="json", data="<order>")]
-async fn add_orders(db: &State<SurrealRepo>, order: Json<models::Order::OrderDTO>) -> Result<Json<ServerMessage>, Status> {
-    let result = db.create("order", order.into_inner()).await;
+async fn add_orders(db: &State<SurrealRepo>, order: Json<models::Order::OrderDTO>) -> Result<Json<responders::ServerMessage>, Status> {
+    let result = controllers::Orders::create_order(db, &order.into_inner()).await;
     return match result {
         Ok(result_output) => {
             let result_entry = result_output[0].output();
-            if (result_entry.is_ok()) {
-                Ok(Json(ServerMessage{message: "Successfully created order"}))
+            if result_entry.is_ok() {
+                Ok(Json(responders::ServerMessage{message: "Successfully created order"}))
             } else {
-                panic!("Failed to create entry in the DB")
+                Err(Status::BadRequest)
             }
         },
         Err(_) => Err(Status::InternalServerError),
@@ -53,19 +48,13 @@ async fn add_orders(db: &State<SurrealRepo>, order: Json<models::Order::OrderDTO
 }
 
 #[put("/", format="json", data="<order>")]
-async fn update_order(db: &State<SurrealRepo>, order: Json<OrderDetails>) -> Result<serde_json::Value, Status> {
-    db.create("order:32", serde_json::json!(order.order)).await.expect("Issue creating order");
-    db.create("user:fae", serde_json::json!("{username: 'fae'}")).await.expect("Issue creating user");
-    let update = db.relate("user:fae", "created", "order:32", "time.written = time::now()").await;
+async fn update_order(db: &State<SurrealRepo>, order: Json<OrderDetails>) -> Result<Json<responders::ServerMessage>, Status> {
+    let update = controllers::Orders::update_order(db, order.order_no, &order.order).await;
     return match update {
         Ok(update_output) => {
             let result = update_output[0].output();
             if (result.is_ok()) {
-                let entries: &surrealdb::sql::Value = result.unwrap();
-                let v: serde_json::Value = serde_json::json!(entries);
-                println!("{}", v);
-                println!("{}", v[0]["id"]);
-                Ok(serde_json::json!("'message': 'Successfully related documents'"))
+                Ok(Json(responders::ServerMessage{ message: "Successfully related documents" }))
             } else {
                 println!("{:?}", result);
                 panic!("Issue doing db operations")

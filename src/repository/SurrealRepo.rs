@@ -4,7 +4,7 @@ use surrealdb::{Datastore, Response, Session};
 pub struct DBConfig<'a> {
     pub path: &'a str,
     pub ns: &'a str,
-    pub db: &'a str
+    pub db: &'a str,
 }
 
 pub struct SurrealRepo {
@@ -23,16 +23,32 @@ impl SurrealRepo {
     }
 
     fn get_json<T: Serialize>(content: T) -> serde_json::Value {
-        return serde_json::json!(content)
+        return serde_json::json!(content);
+    }
+
+    pub async fn find_where(
+        &self,
+        selection: Option<&str>,
+        collection: &str,
+        find_statement: &str
+    ) -> Result<Vec<Response>, surrealdb::Error> {
+        let db_query: String = match selection {
+            Some(sel_string) => format!("SELECT {sel_string} FROM {collection} WHERE {find_statement}"),
+            None => format!("SELECT * FROM {collection} WHERE {find_statement}")
+        };
+        return self.ds.execute(&db_query, &self.ses, None, false).await;
     }
 
     pub async fn find(
         &self,
-        query: &str,
-        collection: &str
+        selection: Option<&str>,
+        collection: &str,
     ) -> Result<Vec<Response>, surrealdb::Error> {
-        let query = format!("SELECT {query} FROM {collection}");
-        return self.ds.execute(&query, &self.ses, None, false).await;
+        let db_query = match selection {
+            Some(query_string) => format!("SELECT {query_string} FROM {collection}"),
+            None => format!("SELECT * FROM {collection}")
+        };
+        return self.ds.execute(&db_query, &self.ses, None, false).await;
     }
 
     pub async fn create<T: Serialize>(
@@ -40,7 +56,11 @@ impl SurrealRepo {
         name: &str,
         content: T,
     ) -> Result<Vec<Response>, surrealdb::Error> {
-        let query = format!("CREATE {0} CONTENT {1}", name, self::SurrealRepo::get_json(content));
+        let query = format!(
+            "CREATE {0} CONTENT {1}",
+            name,
+            self::SurrealRepo::get_json(content)
+        );
         return self.ds.execute(&query, &self.ses, None, false).await;
     }
 
@@ -49,7 +69,11 @@ impl SurrealRepo {
         name: &str,
         content: T,
     ) -> Result<Vec<Response>, surrealdb::Error> {
-        let query = format!("UPDATE {0} CONTENT {1}", name, self::SurrealRepo::get_json(content));
+        let query = format!(
+            "UPDATE {0} CONTENT {1}",
+            name,
+            self::SurrealRepo::get_json(content)
+        );
         return self.ds.execute(&query, &self.ses, None, false).await;
     }
 

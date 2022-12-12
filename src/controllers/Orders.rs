@@ -13,24 +13,22 @@ pub async fn get_orders(db: &SurrealRepo) -> Result<Vec<Response>, surrealdb::Er
 
 pub async fn create_order(
     db: &SurrealRepo,
-    content: models::Order::Order,
+    content: &models::Order::OrderDTO,
 ) -> Result<Vec<Response>, surrealdb::Error> {
-    let json_content = serde_json::json!(content);
-    let query = db.create("order", json_content).await;
+    let query = db.create("order", content).await;
     return match query {
         Ok(query) => Ok(query),
-        Err(e) => panic!("DB Could not add orer - Error: {:?}", e),
+        Err(e) => panic!("DB Could not add order - Error: {:?}", e),
     };
 }
 
 pub async fn update_order(
     db: &SurrealRepo,
-    order_no: i32,
-    order: models::Order::OrderDTO,
+    order_no: u32,
+    order: &models::Order::OrderDTO,
 ) -> Result<Vec<Response>, surrealdb::Error> {
-    let json_content = serde_json::json!(order);
     let cur_order = format!("order:{order_no}");
-    let query = db.create(&cur_order, json_content).await;
+    let query = db.update(&cur_order, order).await;
     return match query {
         Ok(query) => Ok(query),
         Err(e) => panic!("DB Could not update Order - Error: {:?}", e),

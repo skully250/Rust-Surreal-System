@@ -1,14 +1,21 @@
 use rocket::serde::json::Json;
+use serde::Serialize;
 
 //Creating multiple messages with different statuses to handle seperate types of responses
 
+#[derive(Serialize, Debug)]
+pub struct JsonMessage {
+    pub status: bool,
+    pub message: String
+}
+
 #[derive(Responder, Debug)]
 pub struct ServerMessage {
-    pub message: Json<String>
+    pub message: Json<JsonMessage>
 }
 
 impl ServerMessage {
-    pub fn new(message: String) -> Self {
+    pub fn new(message: JsonMessage) -> Self {
         Self {
             message: Json::from(message)
         }

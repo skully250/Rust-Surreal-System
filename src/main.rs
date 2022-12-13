@@ -1,23 +1,26 @@
+mod controllers;
 mod models;
 mod repository;
 mod routes;
-mod controllers;
 mod util;
 
 #[macro_use]
 extern crate rocket;
-use repository::SurrealRepo::{SurrealRepo, DBConfig};
+use repository::SurrealRepo::{DBConfig, SurrealRepo};
 use rocket::{http::Status, serde::json::Json, State};
-use routes::Orders;
+use routes::{Orders, Products};
 use surrealdb::sql::Value;
 
+//TODO: Refactor MVC names to include their affix (Controller, Model, Route)
+
 #[get("/")]
-fn index() {
-}
+fn index() {}
 
 #[get("/test")]
 async fn teapot(db: &State<SurrealRepo>) -> Result<serde_json::Value, Status> {
-    let query = db.query("SELECT ->created->order.* as orders FROM user:fae").await;
+    let query = db
+        .query("SELECT ->created->order.* as orders FROM user:fae")
+        .await;
     return match query {
         Ok(query) => {
             let query_result = query[0].output().unwrap();
@@ -27,8 +30,8 @@ async fn teapot(db: &State<SurrealRepo>) -> Result<serde_json::Value, Status> {
                 panic!("DB did not return");
             }
         }
-        Err(_) => Err(Status::InternalServerError)
-    }
+        Err(_) => Err(Status::InternalServerError),
+    };
 }
 
 #[get("/addItem")]
@@ -71,14 +74,18 @@ fn mangled_data() {
 
 #[launch]
 async fn rocket() -> _ {
-    let config = DBConfig{
+    let config = DBConfig {
         path: "memory",
         ns: "test",
-        db: "test"
+        db: "test",
     };
     let surreal = SurrealRepo::init(config).await;
-    rocket::build().manage(surreal).mount(
-        "/api",
-        routes![index, teapot, add_surreal_item, get_surreal_items],
-    ).mount("/api/orders", Orders::order_routes())
+    rocket::build()
+        .manage(surreal)
+        .mount(
+            "/api",
+            routes![index, teapot, add_surreal_item, get_surreal_items],
+        )
+        .mount("/api/orders", Orders::order_routes())
+        .mount("/api/products", Products::product_routes())
 }

@@ -1,13 +1,46 @@
-use rocket::{http::Status, State, serde::json::Json};
+use rocket::{serde::json::Json, State, Route};
 use surrealdb::sql::Value;
 
+//POTENTIALLY DEPRECATED
+/*
+ * Products will always be created by the order
+ * so products may not need to be created independently
+ */
 use crate::{
     controllers, models,
     util::responders::{JsonMessage, RequestResponse, ServerMessage},
     SurrealRepo,
 };
 
-#[get("/products")]
+pub fn product_routes() -> Vec<Route> {
+    let routes = routes![get_models, add_model, get_products, add_product];
+    return routes;
+}
+
+#[get("/models")]
+pub async fn get_models(
+    db: &State<SurrealRepo>,
+) -> Result<Json<Vec<models::Product::Model>>, RequestResponse> {
+    let query = controllers::Models::get_models(db).await;
+    return match query {
+        Ok(query) => Ok(Json(query)),
+        Err(err) => Err(err),
+    };
+}
+
+#[post("/models", format = "json", data = "<model>")]
+pub async fn add_model(
+    db: &State<SurrealRepo>,
+    model: Json<models::Product::ModelDTO>,
+) -> Result<RequestResponse, RequestResponse> {
+    let query = controllers::Models::add_model(db, model.into_inner()).await;
+    return match query {
+        Ok(query) => Ok(query),
+        Err(err) => Err(err),
+    };
+}
+
+#[get("/")]
 pub async fn get_products(db: &State<SurrealRepo>) -> Result<serde_json::Value, RequestResponse> {
     let query = controllers::Products::get_products(db).await;
     return match query {
@@ -33,12 +66,12 @@ pub async fn get_products(db: &State<SurrealRepo>) -> Result<serde_json::Value, 
     };
 }
 
-#[post("/products", format = "json", data= "<product>")]
-pub async fn add_products(
+#[post("/", format = "json", data = "<product>")]
+pub async fn add_product(
     db: &State<SurrealRepo>,
     product: Json<models::Product::ProductDTO>,
 ) -> Result<RequestResponse, RequestResponse> {
-    let query = db.create("product", &product.into_inner()).await;
+    let query = db.create("product", &product.into_inner(), None).await;
     return match query {
         Ok(product_output) => {
             if product_output[0].output().is_ok() {

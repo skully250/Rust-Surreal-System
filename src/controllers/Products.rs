@@ -14,7 +14,7 @@ pub async fn create_product(
     db: &SurrealRepo,
     content: &models::Product::ProductDTO,
 ) -> Result<Vec<Response>, surrealdb::Error> {
-    let query = db.create("products", content).await;
+    let query = db.create("products", content, None).await;
     return match query {
         Ok(query) => Ok(query),
         Err(e) => panic!("DB Could not create product - Error: {:?}", e),

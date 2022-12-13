@@ -3,6 +3,7 @@ use serde::Serialize;
 
 //Creating multiple messages with different statuses to handle seperate types of responses
 
+//TODO: Find better way to handle JSON Message String
 #[derive(Serialize, Debug)]
 pub struct JsonMessage {
     pub status: bool,

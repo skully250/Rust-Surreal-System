@@ -20,7 +20,7 @@ pub struct Model {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DBProduct {
-    model: Vec<Model>,
+    model: Model,
 }
 
 //TODO: Re-add Actions into the system using graph edges

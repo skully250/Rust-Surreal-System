@@ -8,7 +8,8 @@ use crate::{
 
 //Using namespaces to avoid confusiong between model and controller
 pub async fn get_orders(db: &SurrealRepo) -> Result<Vec<Order::DBOrder>, RequestResponse> {
-    let query = db.query("SELECT *, products.model.* FROM orders").await;
+    let query = db.query("SELECT *, (SELECT * FROM $parent.products[*].model LIMIT 1) as products[*].model FROM orders").await;
+    println!("{:?}", query);
     return match query {
         Ok(query) => {
             let order_result = query[0].output().unwrap();
@@ -30,7 +31,7 @@ pub async fn get_orders(db: &SurrealRepo) -> Result<Vec<Order::DBOrder>, Request
         Err(e) => Err(RequestResponse::InternalErrorRequest(ServerMessage::new(
             JsonMessage {
                 status: false,
-                message: "Error while fetching order query".to_string(),
+                message: e.to_string(),
             },
         ))),
     };

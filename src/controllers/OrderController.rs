@@ -1,13 +1,13 @@
 use surrealdb::sql::Value;
 
 use crate::{
-    models::Order,
+    models::OrderModels,
     util::responders::{JsonMessage, RequestResponse, ServerMessage},
     SurrealRepo,
 };
 
 //Using namespaces to avoid confusiong between model and controller
-pub async fn get_orders(db: &SurrealRepo) -> Result<Vec<Order::DBOrder>, RequestResponse> {
+pub async fn get_orders(db: &SurrealRepo) -> Result<Vec<OrderModels::DBOrder>, RequestResponse> {
     let query = db.query("SELECT *, (SELECT * FROM $parent.products[*].model LIMIT 1) as products[*].model FROM orders").await;
     println!("{:?}", query);
     return match query {
@@ -15,7 +15,7 @@ pub async fn get_orders(db: &SurrealRepo) -> Result<Vec<Order::DBOrder>, Request
             let order_result = query[0].output().unwrap();
             if let Value::Array(rows) = order_result {
                 println!("{0}", rows);
-                let orders: Vec<Order::DBOrder> = serde_json::from_value(
+                let orders: Vec<OrderModels::DBOrder> = serde_json::from_value(
                     serde_json::json!(&rows)).expect("Failed to parse order data");
                 println!("{:?}", orders);
                 Ok(orders)
@@ -39,9 +39,9 @@ pub async fn get_orders(db: &SurrealRepo) -> Result<Vec<Order::DBOrder>, Request
 
 pub async fn create_order(
     db: &SurrealRepo,
-    content: Order::OrderDTO,
+    content: OrderModels::OrderDTO,
 ) -> Result<RequestResponse, RequestResponse> {
-    let order = Order::Order::new(content);
+    let order = OrderModels::Order::new(content);
     let query = db.create("orders", order, None).await;
     return match query {
         Ok(query) => {
@@ -67,7 +67,7 @@ pub async fn create_order(
         Err(e) => Err(RequestResponse::InternalErrorRequest(ServerMessage::new(
             JsonMessage {
                 status: false,
-                message: "Error creating order query".to_string(),
+                message: e.to_string(),
             },
         ))),
     };
@@ -76,7 +76,7 @@ pub async fn create_order(
 pub async fn update_order(
     db: &SurrealRepo,
     order_id: &str,
-    order: &Order::OrderDTO,
+    order: &OrderModels::OrderDTO,
 ) -> Result<RequestResponse, RequestResponse> {
     let cur_order = format!("orders:{order_id}");
     let query = db.update(&cur_order, order).await;
@@ -102,7 +102,7 @@ pub async fn update_order(
         Err(e) => Err(RequestResponse::InternalErrorRequest(ServerMessage::new(
             JsonMessage {
                 status: false,
-                message: "Error updating order query".to_string(),
+                message: e.to_string(),
             },
         ))),
     };

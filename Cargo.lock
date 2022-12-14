@@ -1050,6 +1050,7 @@ name = "fae_orders"
 version = "0.1.0"
 dependencies = [
  "dotenv",
+ "pbkdf2",
  "rocket",
  "serde",
  "serde_json",

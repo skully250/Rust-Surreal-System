@@ -1,8 +1,8 @@
-use crate::{models::Product, repository::SurrealRepo::SurrealRepo};
+use crate::{models::ProductModels, repository::SurrealRepo::SurrealRepo};
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::{Datetime, Id};
+use surrealdb::sql::{Datetime};
 
-use super::User::User;
+use super::UserModels::DBUser;
 
 /*
  * The Order DTO is created as a way to create a parseable input
@@ -11,7 +11,7 @@ use super::User::User;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OrderDTO {
     customer: String,
-    products: Vec<super::Product::ProductDTO>,
+    products: Vec<super::ProductModels::ProductDTO>,
     due_date: String,
 }
 
@@ -37,23 +37,23 @@ pub struct Order {
 #[serde(untagged)]
 enum OrderProducts {
     Depopulated(Vec<String>),
-    Populated(Vec<Product::DBProduct>),
-    Creating(Vec<Product::ProductDTO>),
+    Populated(Vec<ProductModels::DBProduct>),
+    Creating(Vec<ProductModels::ProductDTO>),
 }
 
 impl DBOrder {
     async fn get_created_by(
         db: &SurrealRepo,
-        orderNo: u32,
-    ) -> Result<Option<User>, surrealdb::Error> {
-        let order_id = format!("orders:{orderNo}");
+        order_no: u32,
+    ) -> Result<Option<DBUser>, surrealdb::Error> {
+        let order_id = format!("orders:{order_no}");
         let results = db.find(Some("->created->user.*"), &order_id).await;
         return match results {
             Ok(find_output) => {
                 let find_result = find_output[0].output().unwrap();
                 let find_string = find_result.to_string();
                 //This probably doesnt work from other tests
-                let user: Vec<User> =
+                let user: Vec<DBUser> =
                     serde_json::from_str(&find_string).expect("Failed to parse into user data");
                 Ok(user.into_iter().nth(0))
             }

@@ -20,8 +20,8 @@ pub fn product_routes() -> Vec<Route> {
 #[get("/models")]
 pub async fn get_models(
     db: &State<SurrealRepo>,
-) -> Result<Json<Vec<models::Product::Model>>, RequestResponse> {
-    let query = controllers::Models::get_models(db).await;
+) -> Result<Json<Vec<models::ProductModels::Model>>, RequestResponse> {
+    let query = controllers::ModelController::get_models(db).await;
     return match query {
         Ok(query) => Ok(Json(query)),
         Err(err) => Err(err),
@@ -31,9 +31,9 @@ pub async fn get_models(
 #[post("/models", format = "json", data = "<model>")]
 pub async fn add_model(
     db: &State<SurrealRepo>,
-    model: Json<models::Product::ModelDTO>,
+    model: Json<models::ProductModels::ModelDTO>,
 ) -> Result<RequestResponse, RequestResponse> {
-    let query = controllers::Models::add_model(db, model.into_inner()).await;
+    let query = controllers::ModelController::add_model(db, model.into_inner()).await;
     return match query {
         Ok(query) => Ok(query),
         Err(err) => Err(err),
@@ -42,7 +42,7 @@ pub async fn add_model(
 
 #[get("/")]
 pub async fn get_products(db: &State<SurrealRepo>) -> Result<serde_json::Value, RequestResponse> {
-    let query = controllers::Products::get_products(db).await;
+    let query = controllers::ProductController::get_products(db).await;
     return match query {
         Ok(get_output) => {
             let get_result = get_output[0].output().unwrap();
@@ -69,7 +69,7 @@ pub async fn get_products(db: &State<SurrealRepo>) -> Result<serde_json::Value, 
 #[post("/", format = "json", data = "<product>")]
 pub async fn add_product(
     db: &State<SurrealRepo>,
-    product: Json<models::Product::ProductDTO>,
+    product: Json<models::ProductModels::ProductDTO>,
 ) -> Result<RequestResponse, RequestResponse> {
     let query = db.create("product", &product.into_inner(), None).await;
     return match query {

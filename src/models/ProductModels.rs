@@ -1,10 +1,17 @@
 use serde::{Serialize, Deserialize};
-use surrealdb::sql::Id;
+use surrealdb::sql::Datetime;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ActionTime {
+    finished: Datetime,
+    updated: Datetime
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Action {
     name: String,
-    finished_by: u16
+    finished_by: u16,
+    time: ActionTime
 }
 
 //Using strings to include measurements and symbols ie

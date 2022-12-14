@@ -1,25 +1,25 @@
 use surrealdb::sql::Value;
 
 use crate::{
-    models::Product,
+    models::UserModels::{CustomerDTO, DBCustomer},
     util::responders::{JsonMessage, RequestResponse, ServerMessage},
     SurrealRepo,
 };
 
-pub async fn get_models(db: &SurrealRepo) -> Result<Vec<Product::Model>, RequestResponse> {
-    let query = db.find(None, "models").await;
-    return match query {
+pub async fn get_customers(db: &SurrealRepo) -> Result<Vec<DBCustomer>, RequestResponse> {
+    let customers = db.find(None, "Customers").await;
+    return match customers {
         Ok(query) => {
-            let model_result = query[0].output().unwrap();
-            if let Value::Array(rows) = model_result {
-                let models: Vec<Product::Model> = serde_json::from_value(serde_json::json!(&rows))
-                    .expect("Failed to parse model data");
-                Ok(models)
+            let query_result = query[0].output().unwrap();
+            if let Value::Array(rows) = query_result {
+                let customers: Vec<DBCustomer> = serde_json::from_value(serde_json::json!(&rows))
+                    .expect("Failed to parse customer data");
+                Ok(customers)
             } else {
                 Err(RequestResponse::BadRequest(ServerMessage::new(
                     JsonMessage {
                         status: false,
-                        message: "Error while processing models from DB".to_string(),
+                        message: "Error while fetching customer data".to_string(),
                     },
                 )))
             }
@@ -27,18 +27,17 @@ pub async fn get_models(db: &SurrealRepo) -> Result<Vec<Product::Model>, Request
         Err(e) => Err(RequestResponse::InternalErrorRequest(ServerMessage::new(
             JsonMessage {
                 status: false,
-                message: "Error while fetching models from DB".to_string(),
+                message: e.to_string(),
             },
         ))),
     };
 }
 
-pub async fn add_model(
+pub async fn add_customer(
     db: &SurrealRepo,
-    content: Product::ModelDTO,
+    customer: CustomerDTO,
 ) -> Result<RequestResponse, RequestResponse> {
-    let name = content.name.to_owned();
-    let query = db.create("models", content, Some(name)).await;
+    let query = db.create("customers", customer, None).await;
     return match query {
         Ok(query) => {
             let result_entry = query[0].output();
@@ -46,14 +45,14 @@ pub async fn add_model(
                 Ok(RequestResponse::OKRequest(ServerMessage::new(
                     JsonMessage {
                         status: true,
-                        message: "Succesfully created new model".to_string(),
+                        message: "Successfully created customer".to_string(),
                     },
                 )))
             } else {
                 Err(RequestResponse::BadRequest(ServerMessage::new(
                     JsonMessage {
                         status: false,
-                        message: "Error while creating model in DB".to_string(),
+                        message: "Issue creating customer in DB".to_string(),
                     },
                 )))
             }
@@ -61,7 +60,7 @@ pub async fn add_model(
         Err(e) => Err(RequestResponse::InternalErrorRequest(ServerMessage::new(
             JsonMessage {
                 status: false,
-                message: "Error while creating model in DB".to_string(),
+                message: e.to_string(),
             },
         ))),
     };

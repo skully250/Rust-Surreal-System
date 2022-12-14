@@ -1,4 +1,5 @@
-pub mod Orders;
-pub mod Products;
-pub mod Customers;
-pub mod Models;
+pub mod OrderController;
+pub mod ProductController;
+pub mod CustomerController;
+pub mod ModelController;
+pub mod UserController;

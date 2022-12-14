@@ -63,11 +63,10 @@ impl SurrealRepo {
         content: T,
         has_name: Option<String>,
     ) -> Result<Vec<Response>, surrealdb::Error> {
-        let db_name;
-        match has_name {
-            Some(some_name) => db_name = format!("{name}:{some_name}"),
-            None => db_name = format!("{name}"),
-        }
+        let db_name = match has_name {
+            Some(some_name) => format!("{name}:{some_name}"),
+            None => format!("{name}"),
+        };
         let query = format!(
             "CREATE {0} CONTENT {1}",
             db_name,

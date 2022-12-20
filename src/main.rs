@@ -6,8 +6,12 @@ mod util;
 
 #[macro_use]
 extern crate rocket;
-use repository::SurrealRepo::{DBConfig, SurrealRepo};
+extern crate dotenv;
+
+use dotenv::dotenv;
 use rocket::serde::json::Json;
+
+use repository::SurrealRepo::{DBConfig, SurrealRepo};
 use routes::data::{CustomerRoutes, OrderRoutes, ProductRoutes, UserRoutes};
 use util::responders::JsonMessage;
 
@@ -21,6 +25,7 @@ fn mangled_data() -> Json<JsonMessage> {
 
 #[launch]
 async fn rocket() -> _ {
+    dotenv().ok();
     let config = DBConfig {
         path: "memory",
         ns: "test",

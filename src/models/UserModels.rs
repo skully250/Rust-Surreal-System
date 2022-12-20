@@ -1,7 +1,4 @@
-use pbkdf2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, SaltString},
-    Pbkdf2,
-};
+use argon2::Config;
 use serde::{Deserialize, Serialize};
 
 //Putting both customer and user in the same file since they both correlate to a person in the DB
@@ -57,18 +54,44 @@ pub struct CustomerDTO {
     phone_number: Option<Phone>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub enum UserRole {
+    User,
+    Admin
+}
+
+impl From<&str> for UserRole {
+    fn from(role: &str) -> Self {
+        match role {
+            "Admin" => UserRole::Admin,
+            _ => UserRole::User
+        }
+    }
+}
+
+impl From<&UserRole> for String {
+    fn from(role: &UserRole) -> String {
+        match role {
+            UserRole::Admin => "Admin".to_string(),
+            _ => "User".to_string()
+        }
+    }
+}
+
 //Will add more metadata to users later as expectations expand
 #[derive(Serialize, Deserialize)]
 pub struct DBUser {
     id: String,
-    username: String,
+    pub username: String,
+    pub role: UserRole,
     salt: String,
-    hash: String,
+    pub hash: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct User {
     pub username: String,
+    role: UserRole,
     salt: String,
     hash: String,
 }
@@ -81,15 +104,14 @@ pub struct UserDTO {
 
 impl User {
     pub fn new(user: UserDTO) -> Self {
-        let salt = SaltString::generate(&mut OsRng);
-        let password_hash = Pbkdf2
-            .hash_password(user.password.as_bytes(), &salt)
-            .expect("Failed to hash password")
-            .to_string();
+        let salt = b"saltstring";
+        let config = Config::default();
+        let hash = argon2::hash_encoded(user.password.as_bytes(), salt, &config).unwrap();
         User {
             username: user.username,
-            salt: salt.to_string(),
-            hash: password_hash,
+            role: UserRole::User,
+            salt: String::from_utf8(salt.to_vec()).unwrap(),
+            hash: hash,
         }
     }
 }

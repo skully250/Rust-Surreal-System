@@ -2,3 +2,4 @@
 pub mod ProductModels;
 pub mod OrderModels;
 pub mod UserModels;
+pub mod AuthModels;

@@ -4,6 +4,7 @@ use serde::Serialize;
 //Creating multiple messages with different statuses to handle seperate types of responses
 
 //TODO: Find better way to handle JSON Message String
+//Need to better understand lifetimes as introducing them causes more issues
 #[derive(Serialize, Debug)]
 pub struct JsonMessage {
     pub status: bool,
@@ -23,6 +24,7 @@ impl ServerMessage {
     }
 }
 
+//TODO: Create defaults for errors to reduce repeated code
 #[derive(Debug, Responder)]
 pub enum RequestResponse {
     #[response(status = 200, content_type = "json")]

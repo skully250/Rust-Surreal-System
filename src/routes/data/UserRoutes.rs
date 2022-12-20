@@ -1,4 +1,4 @@
-use rocket::{serde::json::Json, Route, State};
+use rocket::{http::CookieJar, serde::json::Json, Route, State};
 
 use crate::{
     controllers,
@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub fn user_routes() -> Vec<Route> {
-    let routes = routes![get_users, add_users];
+    let routes = routes![get_users, add_users, login_user];
     return routes;
 }
 
@@ -28,4 +28,13 @@ async fn add_users(
     user: Json<UserDTO>,
 ) -> Result<RequestResponse, RequestResponse> {
     controllers::UserController::add_user(db, user.into_inner()).await
+}
+
+#[post("/login", format = "json", data = "<user>")]
+async fn login_user(
+    db: &State<SurrealRepo>,
+    user: Json<UserDTO>,
+    cookies: &CookieJar<'_>,
+) -> Result<RequestResponse, RequestResponse> {
+    return controllers::UserController::login_user(db, cookies, user.into_inner()).await;
 }

@@ -1,12 +1,13 @@
+use rocket::http::Status;
 use surrealdb::sql::Value;
 
 use crate::{
     models::UserModels::{CustomerDTO, DBCustomer},
-    util::responders::{JsonMessage, RequestResponse, ServerMessage},
+    util::responders::JsonMessage,
     SurrealRepo,
 };
 
-pub async fn get_customers(db: &SurrealRepo) -> Result<Vec<DBCustomer>, RequestResponse> {
+pub async fn get_customers(db: &SurrealRepo) -> Result<Vec<DBCustomer>, Status> {
     let customers = db.find(None, "Customers").await;
     return match customers {
         Ok(query) => {
@@ -16,52 +17,28 @@ pub async fn get_customers(db: &SurrealRepo) -> Result<Vec<DBCustomer>, RequestR
                     .expect("Failed to parse customer data");
                 Ok(customers)
             } else {
-                Err(RequestResponse::BadRequest(ServerMessage::new(
-                    JsonMessage {
-                        status: false,
-                        message: "Error while fetching customer data".to_string(),
-                    },
-                )))
+                Err(Status::BadRequest)
             }
         }
-        Err(e) => Err(RequestResponse::InternalErrorRequest(ServerMessage::new(
-            JsonMessage {
-                status: false,
-                message: e.to_string(),
-            },
-        ))),
+        Err(e) => Err(Status::InternalServerError),
     };
 }
 
-pub async fn add_customer(
-    db: &SurrealRepo,
-    customer: CustomerDTO,
-) -> Result<RequestResponse, RequestResponse> {
+pub async fn add_customer(db: &SurrealRepo, customer: CustomerDTO) -> Result<JsonMessage, Status> {
     let query = db.create("customers", customer, None).await;
     return match query {
         Ok(query) => {
             let result_entry = query[0].output();
             if result_entry.is_ok() {
-                Ok(RequestResponse::OKRequest(ServerMessage::new(
-                    JsonMessage {
-                        status: true,
-                        message: "Successfully created customer".to_string(),
-                    },
-                )))
+                Ok(JsonMessage {
+                    status_code: Status::Ok,
+                    status: true,
+                    message: "Successfully created customer",
+                })
             } else {
-                Err(RequestResponse::BadRequest(ServerMessage::new(
-                    JsonMessage {
-                        status: false,
-                        message: "Issue creating customer in DB".to_string(),
-                    },
-                )))
+                Err(Status::BadRequest)
             }
         }
-        Err(e) => Err(RequestResponse::InternalErrorRequest(ServerMessage::new(
-            JsonMessage {
-                status: false,
-                message: e.to_string(),
-            },
-        ))),
+        Err(e) => Err(Status::InternalServerError),
     };
 }

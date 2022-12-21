@@ -1,6 +1,9 @@
-use crate::{models::ProductModels, repository::SurrealRepo::SurrealRepo};
+use crate::{
+    models::ProductModels,
+    repository::SurrealRepo::{DBInteractions, SurrealRepo},
+};
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::{Datetime};
+use surrealdb::sql::{Datetime, Value};
 
 use super::UserModels::DBUser;
 
@@ -39,6 +42,33 @@ enum OrderProducts {
     Depopulated(Vec<String>),
     Populated(Vec<ProductModels::DBProduct>),
     Creating(Vec<ProductModels::ProductDTO>),
+}
+
+#[rocket::async_trait]
+impl DBInteractions<DBOrder> for DBOrder {
+    async fn find(db: &SurrealRepo) -> Result<DBOrder, surrealdb::Error> {
+        todo!()
+    }
+
+    async fn find_where(db: &SurrealRepo) -> Result<Vec<DBOrder>, surrealdb::Error> {
+        todo!()
+    }
+
+    async fn find_all(db: &SurrealRepo) -> Result<Vec<DBOrder>, surrealdb::Error> {
+        let query = db.find(None, "orders").await;
+        return match query {
+            Ok(query) => DBOrder::default_find_all(query),
+            Err(e) => Err(e),
+        };
+    }
+
+    async fn create(db: &SurrealRepo) -> Result<bool, surrealdb::Error> {
+        todo!()
+    }
+
+    async fn update(db: &SurrealRepo) -> Result<bool, surrealdb::Error> {
+        todo!()
+    }
 }
 
 impl DBOrder {

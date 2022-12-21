@@ -1,16 +1,16 @@
-use rocket::http::{Cookie, CookieJar};
+use rocket::{
+    http::{Cookie, CookieJar, Status},
+    time::{Duration, OffsetDateTime},
+};
 use surrealdb::sql::Value;
 
 use crate::{
     models::UserModels::{self, DBUser, UserDTO},
-    util::{
-        responders::{JsonMessage, RequestResponse, ServerMessage},
-        AuthUtil,
-    },
+    util::{responders::JsonMessage, AuthUtil},
     SurrealRepo,
 };
 
-pub async fn get_users(db: &SurrealRepo) -> Result<Vec<UserModels::DBUser>, RequestResponse> {
+pub async fn get_users(db: &SurrealRepo) -> Result<Vec<UserModels::DBUser>, Status> {
     let query = db.find(None, "users").await;
     return match query {
         Ok(query) => {
@@ -21,24 +21,14 @@ pub async fn get_users(db: &SurrealRepo) -> Result<Vec<UserModels::DBUser>, Requ
                         .expect("Failed to parse user data");
                 Ok(users)
             } else {
-                Err(RequestResponse::BadRequest(ServerMessage::new(
-                    JsonMessage {
-                        status: false,
-                        message: "Error fetching users from DB".to_string(),
-                    },
-                )))
+                Err(Status::BadRequest)
             }
         }
-        Err(e) => Err(RequestResponse::InternalErrorRequest(ServerMessage::new(
-            JsonMessage {
-                status: false,
-                message: e.to_string(),
-            },
-        ))),
+        Err(e) => Err(Status::InternalServerError),
     };
 }
 
-pub async fn add_user(db: &SurrealRepo, user: UserDTO) -> Result<RequestResponse, RequestResponse> {
+pub async fn add_user(db: &SurrealRepo, user: UserDTO) -> Result<JsonMessage, Status> {
     let new_user = UserModels::User::new(user);
     let username = new_user.username.to_owned();
     let query = db.create("users", new_user, Some(username)).await;
@@ -46,35 +36,24 @@ pub async fn add_user(db: &SurrealRepo, user: UserDTO) -> Result<RequestResponse
         Ok(query) => {
             let query_entry = query[0].output();
             if query_entry.is_ok() {
-                Ok(RequestResponse::OKRequest(ServerMessage::new(
-                    JsonMessage {
-                        status: false,
-                        message: "Successfully created user".to_string(),
-                    },
-                )))
+                Ok(JsonMessage {
+                    status_code: Status::Ok,
+                    status: true,
+                    message: "Successfully created user",
+                })
             } else {
-                Err(RequestResponse::BadRequest(ServerMessage::new(
-                    JsonMessage {
-                        status: false,
-                        message: "Error creating user in DB".to_string(),
-                    },
-                )))
+                Err(Status::BadRequest)
             }
         }
-        Err(e) => Err(RequestResponse::InternalErrorRequest(ServerMessage::new(
-            JsonMessage {
-                status: false,
-                message: e.to_string(),
-            },
-        ))),
+        Err(e) => Err(Status::InternalServerError),
     };
 }
 
-pub async fn login_user(
+pub async fn login_user<'a>(
     db: &SurrealRepo,
     cookies: &CookieJar<'_>,
     user: UserDTO,
-) -> Result<RequestResponse, RequestResponse> {
+) -> Result<JsonMessage<'a>, Status> {
     let user_query = format!("users:{0}", user.username);
     let DBQuery = db
         .find(None, &user_query)
@@ -88,31 +67,22 @@ pub async fn login_user(
     {
         Ok(result) => result,
         Err(_) => {
-            return Err(RequestResponse::BadRequest(ServerMessage::new(
-                JsonMessage {
-                    status: false,
-                    message: "Error running verify function".to_string(),
-                },
-            )));
+            return Err(Status::InternalServerError);
         }
     };
 
     if !password_compare {
-        return Err(RequestResponse::BadRequest(ServerMessage::new(
-            JsonMessage {
-                status: false,
-                message: "Failed to verify PW".to_string(),
-            },
-        )));
+        return Err(Status::InternalServerError);
     }
 
     let new_jwt =
         AuthUtil::create_jwt(&found_user.username, &found_user.role).expect("Failed to create JWT");
-    cookies.add(Cookie::new("token", new_jwt));
-    Ok(RequestResponse::OKRequest(ServerMessage::new(
-        JsonMessage {
-            status: true,
-            message: "Successfully logged in".to_string(),
-        },
-    )))
+    let expires = OffsetDateTime::now_utc() + Duration::weeks(2);
+    let cookie = Cookie::build("token", new_jwt).expires(expires).finish();
+    cookies.add(cookie);
+    Ok(JsonMessage {
+        status_code: Status::Ok,
+        status: true,
+        message: "Successfully logged in",
+    })
 }

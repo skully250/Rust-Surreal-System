@@ -1,6 +1,30 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use surrealdb::{Datastore, Response, Session};
+use surrealdb::{sql::Value, Datastore, Response, Session};
+
+//Trait for use as implementation on data types that interact with the DB
+#[rocket::async_trait]
+pub trait DBInteractions<T> where T: for<'a> Deserialize<'a> {
+    async fn find(db: &SurrealRepo) -> Result<T, surrealdb::Error>;
+    async fn find_where(db: &SurrealRepo) -> Result<Vec<T>, surrealdb::Error>;
+    async fn find_all(db: &SurrealRepo) -> Result<Vec<T>, surrealdb::Error>;
+
+    //Default function for find all that can be called from find_all in implementations
+    fn default_find_all(query: Vec<Response>) -> Result<Vec<T>, surrealdb::Error>
+    {
+        let query_result = query[0].output().unwrap();
+        if let Value::Array(rows) = query_result {
+            let json_rows = serde_json::json!(&rows);
+            let found: Vec<T> = serde_json::from_value(json_rows).expect("Failed");
+            Ok(found)
+        } else {
+            Err(surrealdb::Error::QueryCancelled)
+        }
+    }
+
+    async fn create(db: &SurrealRepo) -> Result<bool, surrealdb::Error>;
+    async fn update(db: &SurrealRepo) -> Result<bool, surrealdb::Error>;
+}
 
 pub struct DBConfig<'a> {
     pub path: &'a str,

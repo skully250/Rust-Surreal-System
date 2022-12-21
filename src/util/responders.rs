@@ -1,41 +1,33 @@
-use rocket::serde::json::Json;
+use std::io::Cursor;
+
+use rocket::{
+    http::{ContentType, Status},
+    response::{Responder, self},
+    Response,
+};
 use serde::Serialize;
 
 //Creating multiple messages with different statuses to handle seperate types of responses
 
-//TODO: Find better way to handle JSON Message String
-//Need to better understand lifetimes as introducing them causes more issues
 #[derive(Serialize, Debug)]
-pub struct JsonMessage {
+pub struct JsonMessage<'a> {
+    #[serde(skip_serializing)]
+    pub status_code: Status,
     pub status: bool,
-    pub message: String
+    pub message: &'a str,
 }
 
-#[derive(Responder, Debug)]
-pub struct ServerMessage {
-    pub message: Json<JsonMessage>
-}
-
-impl ServerMessage {
-    pub fn new(message: JsonMessage) -> Self {
-        Self {
-            message: Json::from(message)
-        }
+impl<'a, 'r, 'o: 'r> Responder<'r, 'o> for JsonMessage<'a> {
+    fn respond_to(self, request: &'r rocket::Request<'_>) -> response::Result<'o> {
+        let mut build = Response::build();
+        let string = serde_json::to_string(&self).map_err(|e| {
+            error_!("JSON Failed to serialize{:?}", e);
+            Status::InternalServerError
+        })?;
+        build
+            .header(ContentType::JSON)
+            .sized_body(string.len(), Cursor::new(string))
+            .status(self.status_code)
+            .ok()
     }
-}
-
-//TODO: Create defaults for errors to reduce repeated code
-#[derive(Debug, Responder)]
-pub enum RequestResponse {
-    #[response(status = 200, content_type = "json")]
-    OKRequest(ServerMessage),
-
-    #[response(status = 400, content_type = "json")]
-    BadRequest(ServerMessage),
-
-    #[response(status = 500, content_type = "json")]
-    InternalErrorRequest(ServerMessage),
-
-    #[response(status = 501, content_type = "json")]
-    NotImplementedRequest(ServerMessage)
 }

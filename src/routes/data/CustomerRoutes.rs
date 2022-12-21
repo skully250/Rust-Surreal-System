@@ -1,9 +1,9 @@
-use rocket::{serde::json::Json, Route, State};
+use rocket::{http::Status, serde::json::Json, Route, State};
 
 use crate::{
     controllers,
-    models::UserModels::{DBCustomer, CustomerDTO},
-    util::responders::{JsonMessage, RequestResponse, ServerMessage},
+    models::UserModels::{CustomerDTO, DBCustomer},
+    util::responders::JsonMessage,
     SurrealRepo,
 };
 
@@ -13,7 +13,7 @@ pub fn customer_routes() -> Vec<Route> {
 }
 
 #[get("/")]
-async fn get_customers(db: &State<SurrealRepo>) -> Result<Json<Vec<DBCustomer>>, RequestResponse> {
+async fn get_customers(db: &State<SurrealRepo>) -> Result<Json<Vec<DBCustomer>>, Status> {
     let controller_customers = controllers::CustomerController::get_customers(db).await;
     return match controller_customers {
         Ok(customers) => Ok(Json(customers)),
@@ -21,17 +21,22 @@ async fn get_customers(db: &State<SurrealRepo>) -> Result<Json<Vec<DBCustomer>>,
     };
 }
 
-#[post("/", format="json", data="<customer>")]
-async fn add_customer(db: &State<SurrealRepo>, customer: Json<CustomerDTO>) -> Result<RequestResponse, RequestResponse> {
+#[post("/", format = "json", data = "<customer>")]
+async fn add_customer(
+    db: &State<SurrealRepo>,
+    customer: Json<CustomerDTO>,
+) -> Result<JsonMessage, Status> {
     return controllers::CustomerController::add_customer(db, customer.into_inner()).await;
 }
 
-#[put("/", format="json", data="<customer>")]
-fn update_customer(db: &State<SurrealRepo>, customer: Json<CustomerDTO>) -> Result<RequestResponse, RequestResponse> {
-    return Ok(RequestResponse::NotImplementedRequest(ServerMessage::new(
-        JsonMessage {
-            status: false,
-            message: "Not yet implemented".to_string(),
-        },
-    )));
+#[put("/", format = "json", data = "<customer>")]
+fn update_customer(
+    db: &State<SurrealRepo>,
+    customer: Json<CustomerDTO>,
+) -> Result<JsonMessage, Status> {
+    return Ok(JsonMessage {
+        status_code: Status::NotImplemented,
+        status: false,
+        message: "Not yet implemented",
+    });
 }

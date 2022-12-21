@@ -1,11 +1,11 @@
 use std::env;
 
-use super::responders::{JsonMessage, RequestResponse, ServerMessage};
 use crate::models::{AuthModels::Claims, UserModels::UserRole};
 use chrono::Utc;
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+use rocket::http::Status;
 
-pub fn create_jwt(uid: &str, role: &UserRole) -> Result<String, RequestResponse> {
+pub fn create_jwt(uid: &str, role: &UserRole) -> Result<String, Status> {
     let expiration = Utc::now()
         .checked_add_signed(chrono::Duration::weeks(2))
         .expect("Valid timestamp")
@@ -24,12 +24,5 @@ pub fn create_jwt(uid: &str, role: &UserRole) -> Result<String, RequestResponse>
         &claims,
         &EncodingKey::from_secret(env::var("JWTSECRET").unwrap().as_bytes()),
     )
-    .map_err(|_| {
-        RequestResponse::BadRequest(
-            (ServerMessage::new(JsonMessage {
-                status: false,
-                message: "Failed to create JWT".to_string(),
-            })),
-        )
-    });
+    .map_err(|_| Status::BadRequest);
 }

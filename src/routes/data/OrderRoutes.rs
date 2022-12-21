@@ -1,8 +1,9 @@
+use rocket::http::Status;
 use rocket::{serde::json::Json, Route, State};
 use serde::Deserialize;
 
 use crate::models::OrderModels::DBOrder;
-use crate::util::responders::RequestResponse;
+use crate::util::responders::JsonMessage;
 use crate::{controllers, models, SurrealRepo};
 
 #[derive(Debug, Deserialize)]
@@ -17,7 +18,7 @@ pub fn order_routes() -> Vec<Route> {
 }
 
 #[get("/")]
-async fn get_orders(db: &State<SurrealRepo>) -> Result<Json<Vec<DBOrder>>, RequestResponse> {
+async fn get_orders(db: &State<SurrealRepo>) -> Result<Json<Vec<DBOrder>>, Status> {
     let controller_orders = controllers::OrderController::get_orders(db).await;
     return match controller_orders {
         Ok(orders) => Ok(Json(orders)),
@@ -29,7 +30,7 @@ async fn get_orders(db: &State<SurrealRepo>) -> Result<Json<Vec<DBOrder>>, Reque
 async fn add_order(
     db: &State<SurrealRepo>,
     order: Json<models::OrderModels::OrderDTO>,
-) -> Result<RequestResponse, RequestResponse> {
+) -> Result<JsonMessage, Status> {
     return controllers::OrderController::create_order(db, order.into_inner()).await;
 }
 
@@ -37,6 +38,6 @@ async fn add_order(
 async fn update_order(
     db: &State<SurrealRepo>,
     order: Json<OrderDetails>,
-) -> Result<RequestResponse, RequestResponse> {
+) -> Result<JsonMessage, Status> {
     return controllers::OrderController::update_order(db, &order.order_id, &order.order).await;
 }

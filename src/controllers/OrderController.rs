@@ -1,13 +1,10 @@
+use rocket::http::Status;
 use surrealdb::sql::Value;
 
-use crate::{
-    models::OrderModels,
-    util::responders::{JsonMessage, RequestResponse, ServerMessage},
-    SurrealRepo,
-};
+use crate::{models::OrderModels, util::responders::JsonMessage, SurrealRepo};
 
 //Using namespaces to avoid confusiong between model and controller
-pub async fn get_orders(db: &SurrealRepo) -> Result<Vec<OrderModels::DBOrder>, RequestResponse> {
+pub async fn get_orders(db: &SurrealRepo) -> Result<Vec<OrderModels::DBOrder>, Status> {
     let query = db.query("SELECT *, (SELECT * FROM $parent.products[*].model LIMIT 1) as products[*].model FROM orders").await;
     println!("{:?}", query);
     return match query {
@@ -15,32 +12,23 @@ pub async fn get_orders(db: &SurrealRepo) -> Result<Vec<OrderModels::DBOrder>, R
             let order_result = query[0].output().unwrap();
             if let Value::Array(rows) = order_result {
                 println!("{0}", rows);
-                let orders: Vec<OrderModels::DBOrder> = serde_json::from_value(
-                    serde_json::json!(&rows)).expect("Failed to parse order data");
+                let orders: Vec<OrderModels::DBOrder> =
+                    serde_json::from_value(serde_json::json!(&rows))
+                        .expect("Failed to parse order data");
                 println!("{:?}", orders);
                 Ok(orders)
             } else {
-                Err(RequestResponse::BadRequest(ServerMessage::new(
-                    JsonMessage {
-                        status: false,
-                        message: "Error while fetching order".to_string(),
-                    },
-                )))
+                Err(Status::BadRequest)
             }
         }
-        Err(e) => Err(RequestResponse::InternalErrorRequest(ServerMessage::new(
-            JsonMessage {
-                status: false,
-                message: e.to_string(),
-            },
-        ))),
+        Err(e) => Err(Status::InternalServerError),
     };
 }
 
 pub async fn create_order(
     db: &SurrealRepo,
     content: OrderModels::OrderDTO,
-) -> Result<RequestResponse, RequestResponse> {
+) -> Result<JsonMessage, Status> {
     let order = OrderModels::Order::new(content);
     let query = db.create("orders", order, None).await;
     return match query {
@@ -49,61 +37,39 @@ pub async fn create_order(
             let result_entry = query[0].output();
             if result_entry.is_ok() {
                 println!("{:?}", result_entry);
-                Ok(RequestResponse::OKRequest(ServerMessage::new(
-                    JsonMessage {
-                        status: true,
-                        message: "Successfully created Order".to_string(),
-                    },
-                )))
+                Ok(JsonMessage {
+                    status_code: Status::Ok,
+                    status: true,
+                    message: "Successfully created order",
+                })
             } else {
-                Err(RequestResponse::BadRequest(ServerMessage::new(
-                    JsonMessage {
-                        status: false,
-                        message: "Issue creating order in DB".to_string(),
-                    },
-                )))
+                Err(Status::BadRequest)
             }
         }
-        Err(e) => Err(RequestResponse::InternalErrorRequest(ServerMessage::new(
-            JsonMessage {
-                status: false,
-                message: e.to_string(),
-            },
-        ))),
+        Err(e) => Err(Status::InternalServerError),
     };
 }
 
-pub async fn update_order(
+pub async fn update_order<'a>(
     db: &SurrealRepo,
     order_id: &str,
     order: &OrderModels::OrderDTO,
-) -> Result<RequestResponse, RequestResponse> {
+) -> Result<JsonMessage<'a>, Status> {
     let cur_order = format!("orders:{order_id}");
     let query = db.update(&cur_order, order).await;
     return match query {
         Ok(query) => {
             let result = query[0].output();
             if result.is_ok() {
-                Ok(RequestResponse::OKRequest(ServerMessage::new(
-                    JsonMessage {
-                        status: true,
-                        message: "Order successfully updated".to_string(),
-                    },
-                )))
+                Ok(JsonMessage {
+                    status_code: Status::Ok,
+                    status: true,
+                    message: "Order successfully updated",
+                })
             } else {
-                Err(RequestResponse::BadRequest(ServerMessage::new(
-                    JsonMessage {
-                        status: false,
-                        message: "Error updating Order in DB".to_string(),
-                    },
-                )))
+                Err(Status::BadRequest)
             }
         }
-        Err(e) => Err(RequestResponse::InternalErrorRequest(ServerMessage::new(
-            JsonMessage {
-                status: false,
-                message: e.to_string(),
-            },
-        ))),
+        Err(e) => Err(Status::InternalServerError),
     };
 }

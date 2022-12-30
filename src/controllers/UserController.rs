@@ -6,7 +6,7 @@ use surrealdb::sql::Value;
 
 use crate::{
     models::UserModels::{self, DBUser, UserDTO},
-    util::{responders::JsonMessage, AuthUtil},
+    util::{responders::JsonStatus, AuthUtil},
     SurrealRepo,
 };
 
@@ -28,7 +28,7 @@ pub async fn get_users(db: &SurrealRepo) -> Result<Vec<UserModels::DBUser>, Stat
     };
 }
 
-pub async fn add_user(db: &SurrealRepo, user: UserDTO) -> Result<JsonMessage, Status> {
+pub async fn add_user(db: &SurrealRepo, user: UserDTO) -> Result<JsonStatus, Status> {
     let new_user = UserModels::User::new(user);
     let username = new_user.username.to_owned();
     let query = db.create("users", new_user, Some(username)).await;
@@ -36,7 +36,7 @@ pub async fn add_user(db: &SurrealRepo, user: UserDTO) -> Result<JsonMessage, St
         Ok(query) => {
             let query_entry = query[0].output();
             if query_entry.is_ok() {
-                Ok(JsonMessage {
+                Ok(JsonStatus {
                     status_code: Status::Ok,
                     status: true,
                     message: "Successfully created user",
@@ -53,7 +53,7 @@ pub async fn login_user<'a>(
     db: &SurrealRepo,
     cookies: &CookieJar<'_>,
     user: UserDTO,
-) -> Result<JsonMessage<'a>, Status> {
+) -> Result<JsonStatus<'a>, Status> {
     let user_query = format!("users:{0}", user.username);
     let DBQuery = db
         .find(None, &user_query)
@@ -80,7 +80,7 @@ pub async fn login_user<'a>(
     let expires = OffsetDateTime::now_utc() + Duration::weeks(2);
     let cookie = Cookie::build("token", new_jwt).expires(expires).finish();
     cookies.add(cookie);
-    Ok(JsonMessage {
+    Ok(JsonStatus {
         status_code: Status::Ok,
         status: true,
         message: "Successfully logged in",

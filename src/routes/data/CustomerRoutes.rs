@@ -3,7 +3,7 @@ use rocket::{http::Status, serde::json::Json, Route, State};
 use crate::{
     controllers,
     models::UserModels::{CustomerDTO, DBCustomer},
-    util::responders::JsonMessage,
+    util::responders::JsonStatus,
     SurrealRepo,
 };
 
@@ -25,7 +25,7 @@ async fn get_customers(db: &State<SurrealRepo>) -> Result<Json<Vec<DBCustomer>>,
 async fn add_customer(
     db: &State<SurrealRepo>,
     customer: Json<CustomerDTO>,
-) -> Result<JsonMessage, Status> {
+) -> Result<JsonStatus, Status> {
     return controllers::CustomerController::add_customer(db, customer.into_inner()).await;
 }
 
@@ -33,8 +33,8 @@ async fn add_customer(
 fn update_customer(
     db: &State<SurrealRepo>,
     customer: Json<CustomerDTO>,
-) -> Result<JsonMessage, Status> {
-    return Ok(JsonMessage {
+) -> Result<JsonStatus, Status> {
+    return Ok(JsonStatus {
         status_code: Status::NotImplemented,
         status: false,
         message: "Not yet implemented",

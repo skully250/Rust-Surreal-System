@@ -1,7 +1,7 @@
 use rocket::http::Status;
 use surrealdb::sql::Value;
 
-use crate::{models::ProductModels, util::responders::JsonMessage, SurrealRepo};
+use crate::{models::ProductModels, util::responders::JsonStatus, SurrealRepo};
 
 pub async fn get_models(db: &SurrealRepo) -> Result<Vec<ProductModels::Model>, Status> {
     let query = db.find(None, "models").await;
@@ -24,14 +24,14 @@ pub async fn get_models(db: &SurrealRepo) -> Result<Vec<ProductModels::Model>, S
 pub async fn add_model(
     db: &SurrealRepo,
     content: ProductModels::ModelDTO,
-) -> Result<JsonMessage, Status> {
+) -> Result<JsonStatus, Status> {
     let name = content.name.to_owned();
     let query = db.create("models", content, Some(name)).await;
     return match query {
         Ok(query) => {
             let result_entry = query[0].output();
             if result_entry.is_ok() {
-                Ok(JsonMessage {
+                Ok(JsonStatus {
                     status_code: Status::Ok,
                     status: true,
                     message: "Succesfully created new model",

@@ -6,7 +6,7 @@ use surrealdb::sql::Value;
  * Products will always be created by the order
  * so products may not need to be created independently
  */
-use crate::{controllers, models, util::responders::JsonMessage, SurrealRepo};
+use crate::{controllers, models, util::responders::JsonStatus, SurrealRepo};
 
 pub fn product_routes() -> Vec<Route> {
     let routes = routes![get_models, add_model, get_products, add_product];
@@ -28,7 +28,7 @@ pub async fn get_models(
 pub async fn add_model(
     db: &State<SurrealRepo>,
     model: Json<models::ProductModels::ModelDTO>,
-) -> Result<JsonMessage, Status> {
+) -> Result<JsonStatus, Status> {
     let query = controllers::ModelController::add_model(db, model.into_inner()).await;
     return match query {
         Ok(query) => Ok(query),
@@ -56,12 +56,12 @@ pub async fn get_products(db: &State<SurrealRepo>) -> Result<serde_json::Value, 
 pub async fn add_product(
     db: &State<SurrealRepo>,
     product: Json<models::ProductModels::ProductDTO>,
-) -> Result<JsonMessage, Status> {
+) -> Result<JsonStatus, Status> {
     let query = db.create("product", &product.into_inner(), None).await;
     return match query {
         Ok(product_output) => {
             if product_output[0].output().is_ok() {
-                Ok(JsonMessage {
+                Ok(JsonStatus {
                     status_code: Status::Ok,
                     status: true,
                     message: "Successfully added product to DB",

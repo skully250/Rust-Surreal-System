@@ -3,7 +3,7 @@ use rocket::{http::Status, serde::json::Json, Route, State};
 use crate::{
     controllers,
     models::UserModels::{DBUser, UserDTO},
-    util::responders::JsonMessage,
+    util::responders::JsonStatus,
     SurrealRepo,
 };
 
@@ -23,6 +23,6 @@ async fn get_users(db: &State<SurrealRepo>) -> Result<Json<Vec<DBUser>>, Status>
 }
 
 #[post("/", format = "json", data = "<user>")]
-async fn add_users(db: &State<SurrealRepo>, user: Json<UserDTO>) -> Result<JsonMessage, Status> {
+async fn add_users(db: &State<SurrealRepo>, user: Json<UserDTO>) -> Result<JsonStatus, Status> {
     controllers::UserController::add_user(db, user.into_inner()).await
 }

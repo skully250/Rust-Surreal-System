@@ -4,7 +4,7 @@ use jsonwebtoken::{decode, DecodingKey, Validation};
 use rocket::request::{self, FromRequest, Request};
 use serde::{Deserialize, Serialize};
 
-use crate::util::responders::JsonMessage;
+use crate::util::responders::JsonStatus;
 
 #[derive(Serialize)]
 pub struct LoginResponse {
@@ -13,7 +13,7 @@ pub struct LoginResponse {
 
 #[derive(Debug)]
 pub struct AuthUser {
-    user: String,
+    pub user: String,
     role: String,
 }
 
@@ -26,7 +26,7 @@ pub struct Claims {
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for AuthUser {
-    type Error = JsonMessage<'r>;
+    type Error = JsonStatus<'r>;
 
     async fn from_request(req: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
         let cookies = req.cookies();

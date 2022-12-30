@@ -3,7 +3,7 @@ use surrealdb::sql::Value;
 
 use crate::{
     models::UserModels::{CustomerDTO, DBCustomer},
-    util::responders::JsonMessage,
+    util::responders::JsonStatus,
     SurrealRepo,
 };
 
@@ -24,13 +24,13 @@ pub async fn get_customers(db: &SurrealRepo) -> Result<Vec<DBCustomer>, Status> 
     };
 }
 
-pub async fn add_customer(db: &SurrealRepo, customer: CustomerDTO) -> Result<JsonMessage, Status> {
+pub async fn add_customer(db: &SurrealRepo, customer: CustomerDTO) -> Result<JsonStatus, Status> {
     let query = db.create("customers", customer, None).await;
     return match query {
         Ok(query) => {
             let result_entry = query[0].output();
             if result_entry.is_ok() {
-                Ok(JsonMessage {
+                Ok(JsonStatus {
                     status_code: Status::Ok,
                     status: true,
                     message: "Successfully created customer",

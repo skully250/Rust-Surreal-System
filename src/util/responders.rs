@@ -10,15 +10,15 @@ use serde::Serialize;
 //Creating multiple messages with different statuses to handle seperate types of responses
 
 #[derive(Serialize, Debug)]
-pub struct JsonMessage<'a> {
+pub struct JsonStatus<'a> {
     #[serde(skip_serializing)]
     pub status_code: Status,
     pub status: bool,
     pub message: &'a str,
 }
 
-impl<'a, 'r, 'o: 'r> Responder<'r, 'o> for JsonMessage<'a> {
-    fn respond_to(self, request: &'r rocket::Request<'_>) -> response::Result<'o> {
+impl<'a, 'r> Responder<'r, 'static> for JsonStatus<'a> {
+    fn respond_to(self, _: &'r rocket::Request<'_>) -> response::Result<'static> {
         let mut build = Response::build();
         let string = serde_json::to_string(&self).map_err(|e| {
             error_!("JSON Failed to serialize{:?}", e);

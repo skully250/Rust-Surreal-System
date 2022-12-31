@@ -121,7 +121,7 @@ fn not_logged_in<'a>() -> JsonStatus<'a> {
 async fn rocket() -> _ {
     dotenv().ok();
     let config = DBConfig {
-        path: "memory",
+        path: "file://surreal.db",
         ns: "test",
         db: "test",
     };

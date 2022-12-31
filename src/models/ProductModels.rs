@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Datetime;
 
@@ -13,7 +15,6 @@ pub struct Action {
 pub struct ActionDTO<'a> {
     pub order_id: &'a str,
     pub index: u8,
-    pub name: &'a str,
     pub action: Action,
 }
 
@@ -49,18 +50,14 @@ enum ProductModel {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DBProduct {
+    index: u8,
     model: DBModel,
-    actions: Option<Vec<Action>>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Product {
-    model: ProductModel,
+    actions: Option<HashMap<String, Action>>
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProductDTO {
     //More than 255 products seems a bit excessive
     index: u8,
-    product: Product,
+    model: String,
 }

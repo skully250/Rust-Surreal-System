@@ -39,7 +39,6 @@ pub struct Order {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 enum OrderProducts {
-    Depopulated(Vec<String>),
     Populated(Vec<ProductModels::DBProduct>),
     Creating(Vec<ProductModels::ProductDTO>),
 }

@@ -38,12 +38,14 @@ pub async fn add_model(
 
 //Products
 
-#[post("/products", format = "json", data = "<product>")]
+#[post("/<action>", format = "json", data = "<product>")]
 pub async fn action_product<'a>(
     db: &State<SurrealRepo>,
+    action: String,
     product: Json<ProductModels::ActionDTO<'a>>,
 ) -> Result<JsonStatus<'a>, Status> {
-    let query = controllers::ProductController::action_product(db, product.into_inner()).await;
+    let query =
+        controllers::ProductController::action_product(db, action, product.into_inner()).await;
     match query {
         Ok(status) => Ok(JsonStatus {
             status_code: status.0,

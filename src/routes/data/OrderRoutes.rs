@@ -28,8 +28,8 @@ async fn get_orders(db: &State<SurrealRepo>) -> Result<Json<Vec<DBOrder>>, Statu
 }
 
 #[get("/?<customer>")]
-async fn get_orders_by_customer(db: &State<SurrealRepo>, customer: &str) {
-
+async fn get_orders_by_customer(db: &State<SurrealRepo>, customer: &str) -> Status {
+    return Status::NotImplemented;
 }
 
 #[get("/?<user>")]

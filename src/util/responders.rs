@@ -21,7 +21,7 @@ impl<'a, 'r> Responder<'r, 'static> for JsonStatus<'a> {
     fn respond_to(self, _: &'r rocket::Request<'_>) -> response::Result<'static> {
         let mut build = Response::build();
         let string = serde_json::to_string(&self).map_err(|e| {
-            error_!("JSON Failed to serialize{:?}", e);
+            error_!("JSON Failed to serialize: {:?}", e);
             Status::InternalServerError
         })?;
         build

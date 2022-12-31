@@ -20,7 +20,7 @@ use routes::data::{CustomerRoutes, OrderRoutes, ProductRoutes, UserRoutes};
 use surrealdb::sql::Value;
 use util::responders::JsonStatus;
 
-use crate::models::UserModels::UserDTO;
+use crate::models::{UserModels::UserDTO, AuthModels::AuthUser};
 
 //Come back to responders and find a better way to handle them
 #[catch(422)]
@@ -99,6 +99,24 @@ async fn login_user<'a>(
     return controllers::UserController::login_user(db, cookies, user.into_inner()).await;
 }
 
+#[get("/")]
+async fn logged_in<'a>(_user: AuthUser) -> JsonStatus<'a> {
+    JsonStatus {
+        status_code: Status::Accepted,
+        status: true,
+        message: "You are currently logged in"
+    }
+}
+
+#[get("/", rank = 2)]
+fn not_logged_in<'a>() -> JsonStatus<'a> {
+    JsonStatus {
+        status_code: Status::Unauthorized,
+        status: false,
+        message: "You are not current logged in"
+    }
+}
+
 #[launch]
 async fn rocket() -> _ {
     dotenv().ok();
@@ -110,7 +128,7 @@ async fn rocket() -> _ {
     let surreal = SurrealRepo::init(config).await;
     rocket::build()
         .manage(surreal)
-        .mount("/api", routes![login_user, exec_query])
+        .mount("/api", routes![login_user, exec_query, logged_in, not_logged_in])
         .mount("/api/orders", OrderRoutes::order_routes())
         .mount("/api/products", ProductRoutes::product_routes())
         .mount("/api/customers", CustomerRoutes::customer_routes())

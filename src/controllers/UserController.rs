@@ -24,7 +24,7 @@ pub async fn get_users(db: &SurrealRepo) -> Result<Vec<UserModels::DBUser>, Stat
                 Err(Status::BadRequest)
             }
         }
-        Err(e) => Err(Status::InternalServerError),
+        Err(_) => Err(Status::InternalServerError),
     };
 }
 
@@ -45,7 +45,7 @@ pub async fn add_user(db: &SurrealRepo, user: UserDTO) -> Result<JsonStatus, Sta
                 Err(Status::BadRequest)
             }
         }
-        Err(e) => Err(Status::InternalServerError),
+        Err(_) => Err(Status::InternalServerError),
     };
 }
 
@@ -55,11 +55,11 @@ pub async fn login_user<'a>(
     user: UserDTO,
 ) -> Result<JsonStatus<'a>, Status> {
     let user_query = format!("users:{0}", user.username);
-    let DBQuery = db
+    let db_query = db
         .find(None, &user_query)
         .await
         .expect("Failed to query Database");
-    let user_select = serde_json::json!(DBQuery[0].output().unwrap().first());
+    let user_select = serde_json::json!(db_query[0].output().unwrap().first());
     println!("{:?}", user_select);
     let found_user: DBUser =
         serde_json::from_value(user_select).expect("Failed to parse user from DB");

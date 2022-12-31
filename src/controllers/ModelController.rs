@@ -3,13 +3,13 @@ use surrealdb::sql::Value;
 
 use crate::{models::ProductModels, util::responders::JsonStatus, SurrealRepo};
 
-pub async fn get_models(db: &SurrealRepo) -> Result<Vec<ProductModels::Model>, Status> {
+pub async fn get_models(db: &SurrealRepo) -> Result<Vec<ProductModels::DBModel>, Status> {
     let query = db.find(None, "models").await;
     return match query {
         Ok(query) => {
             let model_result = query[0].output().unwrap();
             if let Value::Array(rows) = model_result {
-                let models: Vec<ProductModels::Model> =
+                let models: Vec<ProductModels::DBModel> =
                     serde_json::from_value(serde_json::json!(&rows))
                         .expect("Failed to parse model data");
                 Ok(models)
@@ -17,7 +17,7 @@ pub async fn get_models(db: &SurrealRepo) -> Result<Vec<ProductModels::Model>, S
                 Err(Status::BadRequest)
             }
         }
-        Err(e) => Err(Status::InternalServerError),
+        Err(_) => Err(Status::InternalServerError),
     };
 }
 
@@ -40,6 +40,6 @@ pub async fn add_model(
                 Err(Status::BadRequest)
             }
         }
-        Err(e) => Err(Status::InternalServerError),
+        Err(_) => Err(Status::InternalServerError),
     };
 }

@@ -2,6 +2,7 @@ use std::env;
 
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use rocket::request::{self, FromRequest, Request};
+
 use serde::{Deserialize, Serialize};
 
 use crate::util::responders::JsonStatus;
@@ -11,7 +12,7 @@ pub struct LoginResponse {
     pub token: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AuthUser {
     pub user: String,
     role: String,

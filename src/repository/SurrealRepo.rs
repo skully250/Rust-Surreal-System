@@ -105,7 +105,7 @@ impl SurrealRepo {
         content: T,
     ) -> Result<Vec<Response>, surrealdb::Error> {
         let query = format!(
-            "UPDATE {0} CONTENT {1}",
+            "UPDATE {0} MERGE {1}",
             name,
             self::SurrealRepo::get_json(content)
         );

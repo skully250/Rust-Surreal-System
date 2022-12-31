@@ -57,14 +57,14 @@ pub struct CustomerDTO {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum UserRole {
     User,
-    Admin
+    Admin,
 }
 
 impl From<&str> for UserRole {
     fn from(role: &str) -> Self {
         match role {
             "Admin" => UserRole::Admin,
-            _ => UserRole::User
+            _ => UserRole::User,
         }
     }
 }
@@ -73,7 +73,7 @@ impl From<&UserRole> for String {
     fn from(role: &UserRole) -> String {
         match role {
             UserRole::Admin => "Admin".to_string(),
-            _ => "User".to_string()
+            _ => "User".to_string(),
         }
     }
 }

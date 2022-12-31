@@ -41,7 +41,7 @@ pub async fn get_orders(db: &SurrealRepo) -> Result<Vec<OrderModels::DBOrder>, S
                 Err(Status::BadRequest)
             }
         }
-        Err(e) => Err(Status::InternalServerError),
+        Err(_) => Err(Status::InternalServerError),
     };
 }
 
@@ -77,6 +77,7 @@ pub async fn get_orders_by_user<'a>(
     };
 }
 
+//TODO: Turn into a transaction so that creating order -> relation fail doesnt result in stranded entries
 pub async fn create_order<'a>(
     db: &SurrealRepo,
     content: OrderModels::OrderDTO,
@@ -88,7 +89,7 @@ pub async fn create_order<'a>(
         Ok(query) => {
             let result_entry = query[0].output().expect("Error in creating entry");
             if let Value::Object(entry) = result_entry.first() {
-                let value = get_thing(entry.get("id").unwrap()).expect("Failed to convert value");
+                let value = get_thing(entry.get("id").unwrap()).unwrap();
                 let username = format!("users:{0}", user.user);
                 let related = db
                     .relate(
@@ -109,7 +110,7 @@ pub async fn create_order<'a>(
                 Err(Status::BadRequest)
             }
         }
-        Err(e) => Err(Status::InternalServerError),
+        Err(_) => Err(Status::InternalServerError),
     };
 }
 
@@ -133,6 +134,6 @@ pub async fn update_order<'a>(
                 Err(Status::BadRequest)
             }
         }
-        Err(e) => Err(Status::InternalServerError),
+        Err(_) => Err(Status::InternalServerError),
     };
 }

@@ -20,7 +20,7 @@ pub async fn get_customers(db: &SurrealRepo) -> Result<Vec<DBCustomer>, Status> 
                 Err(Status::BadRequest)
             }
         }
-        Err(e) => Err(Status::InternalServerError),
+        Err(_) => Err(Status::InternalServerError),
     };
 }
 
@@ -39,6 +39,6 @@ pub async fn add_customer(db: &SurrealRepo, customer: CustomerDTO) -> Result<Jso
                 Err(Status::BadRequest)
             }
         }
-        Err(e) => Err(Status::InternalServerError),
+        Err(_) => Err(Status::InternalServerError),
     };
 }

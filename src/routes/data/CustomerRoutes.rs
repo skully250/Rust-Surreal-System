@@ -25,7 +25,7 @@ async fn get_customers(db: &State<SurrealRepo>) -> Result<Json<Vec<DBCustomer>>,
 async fn add_customer(
     db: &State<SurrealRepo>,
     customer: Json<CustomerDTO>,
-) -> Result<JsonStatus, Status> {
+) -> Result<JsonStatus<&str>, Status> {
     return controllers::CustomerController::add_customer(db, customer.into_inner()).await;
 }
 
@@ -33,7 +33,7 @@ async fn add_customer(
 fn update_customer(
     db: &State<SurrealRepo>,
     customer: Json<CustomerDTO>,
-) -> Result<JsonStatus, Status> {
+) -> Result<JsonStatus<&str>, Status> {
     return Ok(JsonStatus {
         status_code: Status::NotImplemented,
         status: false,

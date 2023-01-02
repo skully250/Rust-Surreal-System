@@ -21,10 +21,10 @@ pub async fn get_models(db: &SurrealRepo) -> Result<Vec<ProductModels::DBModel>,
     };
 }
 
-pub async fn add_model(
+pub async fn add_model<'a>(
     db: &SurrealRepo,
     content: ProductModels::ModelDTO,
-) -> Result<JsonStatus, Status> {
+) -> Result<JsonStatus<&'a str>, Status> {
     let name = content.name.to_owned();
     let query = db.create("models", content, Some(name)).await;
     return match query {

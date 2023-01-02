@@ -1,9 +1,15 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::RwLock, fmt::Display};
 
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Datetime;
 
 //Actions
+
+#[derive(Serialize, Deserialize)]
+pub struct DBAction {
+    pub id: String,
+    pub name: String
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Action {
@@ -16,6 +22,23 @@ pub struct ActionDTO<'a> {
     pub order_id: &'a str,
     pub index: u8,
     pub action: Action,
+}
+
+#[derive(Serialize)]
+pub struct ActionList {
+    pub actions: RwLock<Vec<String>>
+}
+
+impl Display for ActionList {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let actions = self.actions.read().unwrap().to_vec();
+        let mut comma_string = String::new();
+        for entry in actions {
+            comma_string.push_str(&entry);
+            comma_string.push_str(", ");
+        }
+        return write!(f, "{}", comma_string);
+    }
 }
 
 //Models

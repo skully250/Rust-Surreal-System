@@ -27,7 +27,7 @@ pub struct Claims {
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for AuthUser {
-    type Error = JsonStatus<'r>;
+    type Error = JsonStatus<&'r str>;
 
     async fn from_request(req: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
         let cookies = req.cookies();

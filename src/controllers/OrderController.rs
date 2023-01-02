@@ -82,7 +82,7 @@ pub async fn create_order<'a>(
     db: &SurrealRepo,
     content: OrderModels::OrderDTO,
     user: &AuthModels::AuthUser,
-) -> Result<JsonStatus<'a>, Status> {
+) -> Result<JsonStatus<&'a str>, Status> {
     let order = OrderModels::Order::new(content);
     let query = db.create("orders", order, None).await;
     return match query {
@@ -118,7 +118,7 @@ pub async fn update_order<'a>(
     db: &SurrealRepo,
     order_id: &str,
     order: &OrderModels::OrderDTO,
-) -> Result<JsonStatus<'a>, Status> {
+) -> Result<JsonStatus<&'a str>, Status> {
     let cur_order = format!("orders:{order_id}");
     let query = db.update(&cur_order, order).await;
     return match query {

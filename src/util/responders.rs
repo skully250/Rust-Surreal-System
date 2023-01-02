@@ -1,8 +1,8 @@
-use std::io::Cursor;
+use std::{fmt::Display, io::Cursor};
 
 use rocket::{
     http::{ContentType, Status},
-    response::{Responder, self},
+    response::{self, Responder},
     Response,
 };
 use serde::Serialize;
@@ -10,14 +10,20 @@ use serde::Serialize;
 //Creating multiple messages with different statuses to handle seperate types of responses
 
 #[derive(Serialize, Debug)]
-pub struct JsonStatus<'a> {
+pub struct JsonStatus<T>
+where
+    T: Display,
+{
     #[serde(skip_serializing)]
     pub status_code: Status,
     pub status: bool,
-    pub message: &'a str,
+    pub message: T,
 }
 
-impl<'a, 'r> Responder<'r, 'static> for JsonStatus<'a> {
+impl<'r, T> Responder<'r, 'static> for JsonStatus<T>
+where
+    T: Display + Serialize
+{
     fn respond_to(self, _: &'r rocket::Request<'_>) -> response::Result<'static> {
         let mut build = Response::build();
         let string = serde_json::to_string(&self).map_err(|e| {

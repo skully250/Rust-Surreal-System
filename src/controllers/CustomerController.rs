@@ -24,7 +24,7 @@ pub async fn get_customers(db: &SurrealRepo) -> Result<Vec<DBCustomer>, Status> 
     };
 }
 
-pub async fn add_customer(db: &SurrealRepo, customer: CustomerDTO) -> Result<JsonStatus, Status> {
+pub async fn add_customer(db: &SurrealRepo, customer: CustomerDTO) -> Result<JsonStatus<&str>, Status> {
     let query = db.create("customers", customer, None).await;
     return match query {
         Ok(query) => {

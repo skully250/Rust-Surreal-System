@@ -23,6 +23,6 @@ async fn get_users(db: &State<SurrealRepo>) -> Result<Json<Vec<DBUser>>, Status>
 }
 
 #[post("/", format = "json", data = "<user>")]
-async fn add_users(db: &State<SurrealRepo>, user: Json<UserDTO>) -> Result<JsonStatus, Status> {
+async fn add_users(db: &State<SurrealRepo>, user: Json<UserDTO>) -> Result<JsonStatus<&str>, Status> {
     controllers::UserController::add_user(db, user.into_inner()).await
 }

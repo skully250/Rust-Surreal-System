@@ -28,7 +28,7 @@ pub async fn get_users(db: &SurrealRepo) -> Result<Vec<UserModels::DBUser>, Stat
     };
 }
 
-pub async fn add_user(db: &SurrealRepo, user: UserDTO) -> Result<JsonStatus, Status> {
+pub async fn add_user(db: &SurrealRepo, user: UserDTO) -> Result<JsonStatus<&str>, Status> {
     let new_user = UserModels::User::new(user);
     let username = new_user.username.to_owned();
     let query = db.create("users", new_user, Some(username)).await;
@@ -53,7 +53,7 @@ pub async fn login_user<'a>(
     db: &SurrealRepo,
     cookies: &CookieJar<'_>,
     user: UserDTO,
-) -> Result<JsonStatus<'a>, Status> {
+) -> Result<JsonStatus<&'a str>, Status> {
     let user_query = format!("users:{0}", user.username);
     let db_query = db
         .find(None, &user_query)

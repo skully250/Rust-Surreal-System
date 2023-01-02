@@ -3,7 +3,7 @@ use crate::{
     repository::SurrealRepo::{DBInteractions, SurrealRepo},
 };
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::{Datetime, Value};
+use surrealdb::sql::Datetime;
 
 use super::UserModels::DBUser;
 

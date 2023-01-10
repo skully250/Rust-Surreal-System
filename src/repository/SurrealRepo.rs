@@ -112,6 +112,19 @@ impl SurrealRepo {
         return self.ds.execute(&query, &self.ses, None, false).await;
     }
 
+    pub async fn update_where<T: Serialize + Debug>(
+        &self,
+        name: &str,
+        content: T,
+        find_statement: &str
+    ) -> Result<Vec<Response>, surrealdb::Error> {
+        let query = format!(
+            "UPDATE {0} MERGE {1} WHERE {2}",
+            name, self::SurrealRepo::get_json(content), find_statement
+        );
+        return self.ds.execute(&query, &self.ses, None, false).await;
+    }
+
     pub async fn relate(
         &self,
         from: &str,

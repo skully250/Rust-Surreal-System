@@ -54,7 +54,7 @@ pub struct CustomerDTO {
     phone_number: Option<Phone>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum UserRole {
     User,
     Admin,

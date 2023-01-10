@@ -43,6 +43,7 @@ enum OrderProducts {
     Creating(Vec<ProductModels::ProductDTO>),
 }
 
+//Not sure if redacting or returning to Trait implementatinos of DB
 #[rocket::async_trait]
 impl DBInteractions<DBOrder> for DBOrder {
     async fn find(db: &SurrealRepo) -> Result<DBOrder, surrealdb::Error> {

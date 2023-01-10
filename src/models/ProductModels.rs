@@ -63,7 +63,6 @@ pub struct ModelDTO {
 }
 
 //Products
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 enum ProductModel {
@@ -72,10 +71,17 @@ enum ProductModel {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+enum ProductQuantity {
+    Single(Action),
+    Multiple(Vec<Action>)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DBProduct {
     index: u8,
     model: DBModel,
-    actions: Option<HashMap<String, Action>>
+    actions: Option<HashMap<String, ProductQuantity>>
 }
 
 #[derive(Debug, Serialize, Deserialize)]

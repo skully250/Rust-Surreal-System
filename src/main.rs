@@ -8,14 +8,14 @@ mod util;
 extern crate rocket;
 extern crate dotenv;
 
-use std::sync::RwLock;
+use std::{sync::RwLock, default, collections::HashMap};
 
 use dotenv::dotenv;
 use models::ProductModels::{ActionList, DBAction};
 use rocket::{
     http::{CookieJar, Status},
     serde::json::Json,
-    State,
+    State, response::content::RawJson,
 };
 
 use repository::SurrealRepo::{DBConfig, SurrealRepo};
@@ -111,15 +111,6 @@ async fn logged_in<'a>(_user: AuthUser) -> JsonStatus<&'a str> {
     }
 }
 
-#[get("/", rank = 2)]
-fn not_logged_in<'a>() -> JsonStatus<&'a str> {
-    JsonStatus {
-        status_code: Status::Unauthorized,
-        status: false,
-        message: "You are not current logged in"
-    }
-}
-
 async fn get_actions(db: &SurrealRepo) -> ActionList {
     let query = db.find(None, "actions").await.expect("Unable to fetch actions from DB");
     let mut action_list: Vec<String> = vec![];
@@ -152,7 +143,7 @@ async fn rocket() -> _ {
     rocket::build()
         .manage(surreal)
         .manage(actions)
-        .mount("/api", routes![login_user, exec_query, logged_in, not_logged_in])
+        .mount("/api", routes![login_user, exec_query, logged_in])
         .mount("/api/orders", OrderRoutes::order_routes())
         .mount("/api/products", ProductRoutes::product_routes())
         .mount("/api/customers", CustomerRoutes::customer_routes())

@@ -1,4 +1,5 @@
 use rocket::{http::Status, State};
+use serde::Serialize;
 use surrealdb::sql::Value;
 
 use crate::{
@@ -6,6 +7,12 @@ use crate::{
     util::responders::JsonStatus,
     SurrealRepo,
 };
+
+#[derive(Serialize)]
+struct ActionDetails {
+    name: String,
+    active: bool,
+}
 
 pub async fn action_product<'a>(
     db: &SurrealRepo,
@@ -49,16 +56,16 @@ pub async fn get_actions(db: &SurrealRepo) -> Result<Vec<DBAction>, Status> {
 pub async fn create_action<'a>(
     db: &SurrealRepo,
     actions: &State<ActionList>,
-    action_name: &str,
+    action_details: ActionDetails,
 ) -> Result<JsonStatus<&'a str>, Status> {
     let query = db
-        .create("actions", serde_json::json!({ "name": action_name }), None)
+        .create("actions", serde_json::json!(action_details), None)
         .await;
     let mut actions = actions
         .actions
         .write()
         .expect("Could not open writeable reference");
-    actions.push(action_name.to_string());
+    actions.push(action_details.name);
     return match query {
         Ok(_query_result) => Ok(JsonStatus {
             status_code: Status::Ok,
@@ -67,6 +74,33 @@ pub async fn create_action<'a>(
         }),
         Err(_) => Err(Status::BadRequest),
     };
+}
+
+pub async fn update_action(
+    db: &SurrealRepo,
+    action_list: &State<ActionList>,
+    action_details: ActionDetails,
+) {
+    let where_statement = format!("name = '{0}'", action_details.name);
+    let query = db
+        .update_where(
+            "actions",
+            serde_json::json!(action_details),
+            &where_statement,
+        )
+        .await;
+    if action_details.active == false {
+        let mut actions = action_list
+            .actions
+            .write()
+            .expect("Could not open writeable reference");
+        let index = actions
+            .iter()
+            .position(|action| action.eq(&action_details.name));
+        if index.is_some() {
+            actions.remove(index.unwrap());
+        }
+    }
 }
 
 //Potentially Deprecated - May return in future

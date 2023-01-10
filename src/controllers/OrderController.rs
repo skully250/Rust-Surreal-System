@@ -26,16 +26,16 @@ pub fn get_thing(val: &Value) -> Result<&Thing, Status> {
 //Using namespaces to avoid confusiong between model and controller
 pub async fn get_orders(db: &SurrealRepo) -> Result<Vec<OrderModels::DBOrder>, Status> {
     let query = db.query("SELECT *, (SELECT * FROM $parent.products[*].model LIMIT 1) as products[*].model FROM orders").await;
-    println!("{:?}", query);
+    //println!("{:?}", query);
     return match query {
         Ok(query) => {
             let order_result = query[0].output().unwrap();
             if let Value::Array(rows) = order_result {
-                println!("{0}", rows);
+                //println!("{0}", rows);
                 let orders: Vec<OrderModels::DBOrder> =
                     serde_json::from_value(serde_json::json!(&rows))
                         .expect("Failed to parse order data");
-                println!("{:?}", orders);
+                //println!("{:?}", orders);
                 Ok(orders)
             } else {
                 Err(Status::BadRequest)

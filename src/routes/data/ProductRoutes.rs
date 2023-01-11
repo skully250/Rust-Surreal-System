@@ -1,15 +1,15 @@
+use crate::{
+    controllers::{self},
+    models::ProductModels::{self, ActionList, DBAction},
+    util::responders::JsonStatus,
+    SurrealRepo,
+};
 use rocket::{http::Status, serde::json::Json, Route, State};
 
 /*
  * Products will always be created by the order
  * Products will not be created independently but will have indices to act upon
  */
-use crate::{
-    controllers,
-    models::ProductModels::{self, ActionList, DBAction},
-    util::responders::JsonStatus,
-    SurrealRepo,
-};
 
 pub fn product_routes() -> Vec<Route> {
     let routes = routes![
@@ -18,6 +18,9 @@ pub fn product_routes() -> Vec<Route> {
         action_product,
         create_action,
         get_actions,
+        update_action,
+        delete_action,
+        get_db_actions
     ];
     return routes;
 }
@@ -52,26 +55,46 @@ async fn add_model<'a>(
 
 //Actions
 
+#[get("/actions/db")]
+async fn get_db_actions(db: &State<SurrealRepo>) -> Result<Json<Vec<DBAction>>, Status> {
+    let query = controllers::ActionController::get_actions(db).await;
+    return match query {
+        Ok(actions) => Ok(Json(actions)),
+        Err(e) => Err(e),
+    };
+}
+
 #[get("/actions")]
 async fn get_actions(action_list: &State<ActionList>) -> Json<Vec<String>> {
     let actions = action_list.actions.read().unwrap().to_vec();
     return Json(actions);
 }
 
-#[post("/actions", data = "<action_name>")]
+#[post("/actions/<action_name>")]
 async fn create_action<'a>(
     db: &State<SurrealRepo>,
     action: &State<ActionList>,
-    action_name: &str,
+    action_name: String,
 ) -> Result<JsonStatus<&'a str>, Status> {
     return controllers::ActionController::create_action(db, action, action_name).await;
 }
 
-#[put("/actions", data = "<action_name>")]
-async fn update_action(db: &State<SurrealRepo>,
-action: &State<ActionList>,
-action_name: &str) {
-    
+#[put("/actions/<action_name>")]
+async fn update_action<'a>(
+    db: &State<SurrealRepo>,
+    action_list: &State<ActionList>,
+    action_name: String,
+) -> JsonStatus<&'a str> {
+    return controllers::ActionController::update_action(db, action_list, action_name, true).await;
+}
+
+#[delete("/actions/<action_name>")]
+async fn delete_action<'a>(
+    db: &State<SurrealRepo>,
+    action_list: &State<ActionList>,
+    action_name: String,
+) -> JsonStatus<&'a str> {
+    return controllers::ActionController::update_action(db, action_list, action_name, false).await;
 }
 
 //Products

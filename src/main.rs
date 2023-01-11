@@ -112,7 +112,7 @@ async fn logged_in<'a>(_user: AuthUser) -> JsonStatus<&'a str> {
 }
 
 async fn get_actions(db: &SurrealRepo) -> ActionList {
-    let query = db.find(None, "actions").await.expect("Unable to fetch actions from DB");
+    let query = db.find_where(None, "actions", "active = true").await.expect("Unable to fetch actions from DB");
     let mut action_list: Vec<String> = vec![];
     let actions = query[0].output().unwrap();
     if let Value::Array(rows) = actions {

@@ -8,7 +8,8 @@ use surrealdb::sql::Datetime;
 #[derive(Serialize, Deserialize)]
 pub struct DBAction {
     pub id: String,
-    pub name: String
+    pub name: String,
+    pub active: bool
 }
 
 #[derive(Debug, Serialize, Deserialize)]

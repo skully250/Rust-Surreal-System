@@ -1,5 +1,5 @@
 use rocket::{http::Status, State};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use surrealdb::sql::Value;
 
 use crate::{
@@ -8,8 +8,8 @@ use crate::{
     SurrealRepo,
 };
 
-#[derive(Serialize)]
-struct ActionDetails {
+#[derive(Serialize, Deserialize)]
+pub struct ActionDetails {
     name: String,
     active: bool,
 }
@@ -56,8 +56,12 @@ pub async fn get_actions(db: &SurrealRepo) -> Result<Vec<DBAction>, Status> {
 pub async fn create_action<'a>(
     db: &SurrealRepo,
     actions: &State<ActionList>,
-    action_details: ActionDetails,
+    action_name: String,
 ) -> Result<JsonStatus<&'a str>, Status> {
+    let action_details = ActionDetails {
+        name: action_name,
+        active: true,
+    };
     let query = db
         .create("actions", serde_json::json!(action_details), None)
         .await;
@@ -76,11 +80,16 @@ pub async fn create_action<'a>(
     };
 }
 
-pub async fn update_action(
+pub async fn update_action<'a>(
     db: &SurrealRepo,
     action_list: &State<ActionList>,
-    action_details: ActionDetails,
-) {
+    action_name: String,
+    active: bool,
+) -> JsonStatus<&'a str> {
+    let action_details = ActionDetails {
+        name: action_name,
+        active: active,
+    };
     let where_statement = format!("name = '{0}'", action_details.name);
     let query = db
         .update_where(
@@ -88,29 +97,76 @@ pub async fn update_action(
             serde_json::json!(action_details),
             &where_statement,
         )
-        .await;
-    if action_details.active == false {
-        let mut actions = action_list
-            .actions
-            .write()
-            .expect("Could not open writeable reference");
-        let index = actions
-            .iter()
-            .position(|action| action.eq(&action_details.name));
-        if index.is_some() {
-            actions.remove(index.unwrap());
+        .await
+        .unwrap();
+
+    //I hate this
+    let empty_query = query
+        .first()
+        .unwrap()
+        .result
+        .as_ref()
+        .unwrap()
+        .first()
+        .is_none();
+
+    println!("{:?}", empty_query);
+
+    let mut actions = action_list
+        .actions
+        .write()
+        .expect("Could not open writeable reference");
+
+    let index = actions
+        .iter()
+        .position(|action| action.eq(&action_details.name));
+
+    match active {
+        true => {
+            if empty_query {
+                return JsonStatus {
+                    status_code: Status::NotFound,
+                    status: false,
+                    message: "Action doesnt exist",
+                };
+            }
+            if index.is_some() {
+                return JsonStatus {
+                    status_code: Status::NotModified,
+                    status: true,
+                    message: "Action already active",
+                };
+            } else {
+                actions.push(action_details.name);
+                return JsonStatus {
+                    status_code: Status::Ok,
+                    status: true,
+                    message: "Successfully activated action",
+                };
+            }
+        }
+        false => {
+            if empty_query {
+                return JsonStatus {
+                    status_code: Status::NotFound,
+                    status: false,
+                    message: "Action doesnt exist",
+                };
+            }
+            if index.is_some() {
+                actions.remove(index.unwrap());
+                return JsonStatus {
+                    status_code: Status::Ok,
+                    status: true,
+                    message: "Action archived",
+                };
+            } else {
+                return JsonStatus {
+                    status_code: Status::NotFound,
+                    status: false,
+                    message: "Action doesnt exist",
+                };
+            }
         }
     }
 }
-
-//Potentially Deprecated - May return in future
-// pub async fn create_product(
-//     db: &SurrealRepo,
-//     content: &models::ProductModels::ProductDTO,
-// ) -> Result<Vec<Response>, surrealdb::Error> {
-//     let query = db.create("products", content, None).await;
-//     return match query {
-//         Ok(query) => Ok(query),
-//         Err(e) => panic!("DB Could not create product - Error: {:?}", e),
-//     };
-// }

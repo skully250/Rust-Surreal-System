@@ -26,3 +26,13 @@ async fn get_users(db: &State<SurrealRepo>) -> Result<Json<Vec<DBUser>>, Status>
 async fn add_users(db: &State<SurrealRepo>, user: Json<UserDTO>) -> Result<JsonStatus<&str>, Status> {
     controllers::UserController::add_user(db, user.into_inner()).await
 }
+
+#[put("/<user_id>", format = "json", data = "<user>")]
+async fn edit_user(db: &State<SurrealRepo>, user: Json<UserDTO>, user_id: String) {
+
+}
+
+#[delete("/<user_id>")]
+async fn delete_user(db: &State<SurrealRepo>, user_id: String) {
+
+}

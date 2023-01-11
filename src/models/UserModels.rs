@@ -96,10 +96,11 @@ pub struct User {
     hash: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UserDTO {
     pub username: String,
     pub password: String,
+    pub role: Option<String>
 }
 
 impl User {
@@ -107,9 +108,15 @@ impl User {
         let salt = b"saltstring";
         let config = Config::default();
         let hash = argon2::hash_encoded(user.password.as_bytes(), salt, &config).unwrap();
+        let role: UserRole;
+        if user.role.is_none() {
+            role = UserRole::User;
+        } else {
+            role = UserRole::from(user.role.unwrap().as_str());
+        }
         User {
             username: user.username,
-            role: UserRole::User,
+            role: role,
             salt: String::from_utf8(salt.to_vec()).unwrap(),
             hash: hash,
         }

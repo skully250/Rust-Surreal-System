@@ -76,7 +76,7 @@ impl<'r> FromRequest<'r> for AuthUser {
             Ok(token) => {
                 let user_role = get_role(db, &token).await;
                 println!("{:?}", user_role);
-                if user_role != "User" {
+                if (user_role != "User") && (user_role != "Admin") {
                     return request::Outcome::Failure((
                         Status::Unauthorized,
                         "Failed to validate user",

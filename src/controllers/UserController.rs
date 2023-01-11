@@ -49,6 +49,39 @@ pub async fn add_user(db: &SurrealRepo, user: UserDTO) -> Result<JsonStatus<&str
     };
 }
 
+pub async fn edit_user(
+    db: &SurrealRepo,
+    user: UserDTO,
+    user_id: String,
+) -> Result<JsonStatus<&str>, Status> {
+    let query = db.update(&user_id, user).await;
+    return match query {
+        Ok(query) => {
+            let empty_query = query[0].output().unwrap().first().is_none();
+            if !empty_query {
+                Ok(JsonStatus {
+                    status_code: Status::Ok,
+                    status: true,
+                    message: "Successfully edited user",
+                })
+            } else {
+                Ok(JsonStatus {
+                    status_code: Status::NotFound,
+                    status: false,
+                    message: "User doesnt exist",
+                })
+            }
+        }
+        Err(_) => Err(Status::InternalServerError),
+    };
+}
+
+pub async fn delete_user(db: &SurrealRepo, user_id: String) {
+    
+}
+
+//Login Functions
+
 pub async fn login_user<'a>(
     db: &SurrealRepo,
     cookies: &CookieJar<'_>,

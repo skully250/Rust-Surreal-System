@@ -4,14 +4,16 @@ use surrealdb::{sql::Value, Datastore, Response, Session};
 
 //Trait for use as implementation on data types that interact with the DB
 #[rocket::async_trait]
-pub trait DBInteractions<T> where T: for<'a> Deserialize<'a> {
+pub trait DBInteractions<T>
+where
+    T: for<'a> Deserialize<'a>,
+{
     async fn find(db: &SurrealRepo) -> Result<T, surrealdb::Error>;
     async fn find_where(db: &SurrealRepo) -> Result<Vec<T>, surrealdb::Error>;
     async fn find_all(db: &SurrealRepo) -> Result<Vec<T>, surrealdb::Error>;
 
     //Default function for find all that can be called from find_all in implementations
-    fn default_find_all(query: Vec<Response>) -> Result<Vec<T>, surrealdb::Error>
-    {
+    fn default_find_all(query: Vec<Response>) -> Result<Vec<T>, surrealdb::Error> {
         let query_result = query[0].output().unwrap();
         if let Value::Array(rows) = query_result {
             let json_rows = serde_json::json!(&rows);
@@ -116,11 +118,13 @@ impl SurrealRepo {
         &self,
         name: &str,
         content: T,
-        find_statement: &str
+        find_statement: &str,
     ) -> Result<Vec<Response>, surrealdb::Error> {
         let query = format!(
             "UPDATE {0} MERGE {1} WHERE {2}",
-            name, self::SurrealRepo::get_json(content), find_statement
+            name,
+            self::SurrealRepo::get_json(content),
+            find_statement
         );
         return self.ds.execute(&query, &self.ses, None, false).await;
     }
@@ -133,6 +137,12 @@ impl SurrealRepo {
         content: &str,
     ) -> Result<Vec<Response>, surrealdb::Error> {
         let query = format!("RELATE {from}->{action}->{to} SET {content}");
+        return self.ds.execute(&query, &self.ses, None, false).await;
+    }
+
+    pub async fn remove(&self, item_id: String) -> Result<Vec<Response>, surrealdb::Error> {
+        //TODO: Check for : to ensure that whole tables arent deleted accidentally
+        let query = format!("DELETE {0} RETURN BEFORE", item_id);
         return self.ds.execute(&query, &self.ses, None, false).await;
     }
 

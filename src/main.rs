@@ -11,7 +11,7 @@ extern crate dotenv;
 use std::{sync::RwLock, default, collections::HashMap};
 
 use dotenv::dotenv;
-use models::ProductModels::{ActionList, DBAction};
+use models::{ProductModels::{ActionList, DBAction}, AuthModels::AuthAdmin};
 use rocket::{
     http::{CookieJar, Status},
     serde::json::Json,

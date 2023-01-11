@@ -8,13 +8,18 @@ use crate::{
 };
 
 pub fn customer_routes() -> Vec<Route> {
-    let routes = routes![get_customers, add_customer, update_customer];
+    let routes = routes![
+        get_customers,
+        add_customer,
+        update_customer,
+        delete_customer
+    ];
     return routes;
 }
 
-#[get("/")]
-async fn get_customers(db: &State<SurrealRepo>) -> Result<Json<Vec<DBCustomer>>, Status> {
-    let controller_customers = controllers::CustomerController::get_customers(db).await;
+#[get("/?<removed>")]
+async fn get_customers(db: &State<SurrealRepo>, removed: Option<bool>) -> Result<Json<Vec<DBCustomer>>, Status> {
+    let controller_customers = controllers::CustomerController::get_customers(db, removed).await;
     return match controller_customers {
         Ok(customers) => Ok(Json(customers)),
         Err(err) => Err(err),
@@ -29,14 +34,20 @@ async fn add_customer(
     return controllers::CustomerController::add_customer(db, customer.into_inner()).await;
 }
 
-#[put("/", format = "json", data = "<customer>")]
-fn update_customer(
+#[put("/<customer_id>", format = "json", data = "<customer>")]
+async fn update_customer(
     db: &State<SurrealRepo>,
     customer: Json<CustomerDTO>,
+    customer_id: String,
 ) -> Result<JsonStatus<&str>, Status> {
-    return Ok(JsonStatus {
-        status_code: Status::NotImplemented,
-        status: false,
-        message: "Not yet implemented",
-    });
+    return controllers::CustomerController::edit_customer(db, customer.into_inner(), customer_id)
+        .await;
+}
+
+#[delete("/<customer_id>")]
+async fn delete_customer(
+    db: &State<SurrealRepo>,
+    customer_id: String,
+) -> Result<JsonStatus<&str>, Status> {
+    return controllers::CustomerController::remove_customer(db, customer_id).await;
 }

@@ -100,15 +100,7 @@ pub async fn update_action<'a>(
         .await
         .unwrap();
 
-    //I hate this
-    let empty_query = query
-        .first()
-        .unwrap()
-        .result
-        .as_ref()
-        .unwrap()
-        .first()
-        .is_none();
+    let empty_query = query[0].output().unwrap().first().is_none();
 
     println!("{:?}", empty_query);
 

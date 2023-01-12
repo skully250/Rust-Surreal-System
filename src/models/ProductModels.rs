@@ -19,8 +19,8 @@ pub struct Action {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct ActionDTO<'a> {
-    pub order_id: &'a str,
+pub struct ActionDTO {
+    pub action_name: String,
     pub index: u8,
     pub action: Action,
 }

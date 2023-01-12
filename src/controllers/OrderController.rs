@@ -117,7 +117,7 @@ pub async fn create_order<'a>(
 pub async fn update_order<'a>(
     db: &SurrealRepo,
     order_id: &str,
-    order: &OrderModels::OrderDTO,
+    order: OrderModels::OrderDTO,
 ) -> Result<JsonStatus<&'a str>, Status> {
     let cur_order = format!("orders:{order_id}");
     let query = db.update(&cur_order, order).await;

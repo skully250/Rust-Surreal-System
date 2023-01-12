@@ -140,7 +140,7 @@ impl SurrealRepo {
         return self.ds.execute(&query, &self.ses, None, false).await;
     }
 
-    pub async fn remove(&self, item_id: String) -> Result<Vec<Response>, surrealdb::Error> {
+    pub async fn delete(&self, item_id: String) -> Result<Vec<Response>, surrealdb::Error> {
         //TODO: Check for : to ensure that whole tables arent deleted accidentally
         let query = format!("DELETE {0} RETURN BEFORE", item_id);
         return self.ds.execute(&query, &self.ses, None, false).await;

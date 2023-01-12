@@ -54,7 +54,8 @@ pub async fn edit_user(
     user: UserDTO,
     user_id: String,
 ) -> Result<JsonStatus<&str>, Status> {
-    let query = db.update(&user_id, user).await;
+    let new_user = UserModels::User::new(user);
+    let query = db.update(&user_id, new_user).await;
     return match query {
         Ok(query) => {
             let empty_query = query[0].output().unwrap().first().is_none();
@@ -76,8 +77,27 @@ pub async fn edit_user(
     };
 }
 
-pub async fn delete_user(db: &SurrealRepo, user_id: String) {
-    
+pub async fn delete_user(db: &SurrealRepo, user_id: String) -> Result<JsonStatus<&str>, Status> {
+    let query = db.delete(user_id).await;
+    return match query {
+        Ok(query) => {
+            let empty_query = query[0].output().unwrap().first().is_none();
+            if !empty_query {
+                Ok(JsonStatus {
+                    status_code: Status::Ok,
+                    status: true,
+                    message: "Successfully removed user",
+                })
+            } else {
+                Ok(JsonStatus {
+                    status_code: Status::NotFound,
+                    status: false,
+                    message: "User doesnt exist",
+                })
+            }
+        }
+        Err(_) => Err(Status::InternalServerError),
+    };
 }
 
 //Login Functions

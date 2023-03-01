@@ -42,15 +42,11 @@ async fn get_orders_by_customer(db: &State<SurrealRepo>, customer: &str) -> Stat
 async fn get_orders_by_user<'a>(
     db: &State<SurrealRepo>,
     user: &str,
-) -> Result<Json<Vec<DBOrder>>, JsonStatus<&'a str>> {
+) -> Result<Json<Vec<DBOrder>>, Status> {
     let related_orders = controllers::OrderController::get_orders_by_user(db, user).await;
     return match related_orders {
         Ok(orders) => Ok(Json(orders)),
-        Err(err) => Err(JsonStatus {
-            status_code: err.0,
-            status: false,
-            message: err.1,
-        }),
+        Err(err) => Err(err),
     };
 }
 
@@ -78,7 +74,7 @@ async fn delete_order(
     order_id: String,
 ) -> Result<JsonStatus<&str>, Status> {
     let db_name = format!("orders:{order_id}");
-    return Err(Status::NotImplemented);
+    return controllers::OrderController::delete_order(db, &db_name).await;
 }
 
 //Products

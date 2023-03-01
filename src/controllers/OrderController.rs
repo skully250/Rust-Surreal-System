@@ -7,7 +7,10 @@ use crate::{
         AuthModels,
         OrderModels::{self},
     },
-    util::responders::JsonStatus,
+    util::{
+        responders::JsonStatus,
+        JsonUtil::{self, query_translate},
+    },
     SurrealRepo,
 };
 
@@ -25,21 +28,12 @@ pub fn get_thing(val: &Value) -> Result<&Thing, Status> {
 
 //Using namespaces to avoid confusiong between model and controller
 pub async fn get_orders(db: &SurrealRepo) -> Result<Vec<OrderModels::DBOrder>, Status> {
-    let query = db.query("SELECT *, (SELECT * FROM $parent.products[*].model LIMIT 1) as products[*].model FROM orders").await;
+    let query = db.query("SELECT *, (SELECT * FROM $parent.products[*].model LIMIT 1) as products[*].model FROM orders WHERE removed != true").await;
     //println!("{:?}", query);
     return match query {
         Ok(query) => {
             let order_result = query[0].output().unwrap();
-            if let Value::Array(rows) = order_result {
-                //println!("{0}", rows);
-                let orders: Vec<OrderModels::DBOrder> =
-                    serde_json::from_value(serde_json::json!(&rows))
-                        .expect("Failed to parse order data");
-                //println!("{:?}", orders);
-                Ok(orders)
-            } else {
-                Err(Status::BadRequest)
-            }
+            return query_translate(&order_result);
         }
         Err(_) => Err(Status::InternalServerError),
     };
@@ -48,7 +42,7 @@ pub async fn get_orders(db: &SurrealRepo) -> Result<Vec<OrderModels::DBOrder>, S
 pub async fn get_orders_by_user<'a>(
     db: &SurrealRepo,
     user: &str,
-) -> Result<Vec<OrderModels::DBOrder>, (Status, &'a str)> {
+) -> Result<Vec<OrderModels::DBOrder>, Status> {
     //Potential to swap this for a new impl fn for this functionality
     let query_string = format!(
         "SELECT ->created->orders.* AS orders FROM users:{0} FETCH orders.products.model",
@@ -61,19 +55,14 @@ pub async fn get_orders_by_user<'a>(
             if let Value::Array(rows) = order_result {
                 println!("{:?}", rows.first());
                 //Create Custom struct because of how the data returns from the DB
-                let query_return = serde_json::json!(&rows.first());
-                println!("{:?}", query_return);
-                let order_data: Result<RelatedOrders, serde_json::Error> =
-                    serde_json::from_value(query_return);
-                return match order_data {
-                    Ok(order_data) => Ok(order_data.orders),
-                    Err(_) => Err((Status::BadRequest, "No orders exist for that user")),
-                };
+                let order_data: RelatedOrders = JsonUtil::query_translate(&rows.first().unwrap())
+                    .expect("Failed to parse data");
+                return Ok(order_data.orders);
             } else {
-                Err((Status::BadRequest, "Failed to parse data"))
+                Err(Status::BadRequest)
             }
         }
-        Err(_) => Err((Status::InternalServerError, "Failed to execute query")),
+        Err(_) => Err(Status::InternalServerError),
     };
 }
 
@@ -129,6 +118,26 @@ pub async fn update_order<'a>(
                     status_code: Status::Ok,
                     status: true,
                     message: "Order successfully updated",
+                })
+            } else {
+                Err(Status::BadRequest)
+            }
+        }
+        Err(_) => Err(Status::InternalServerError),
+    };
+}
+
+pub async fn delete_order<'a>(db: &SurrealRepo, order_id: &str) -> Result<JsonStatus<&'a str>, Status> {
+    let query_str = format!("UPDATE {order_id} SET removed = true");
+    let query = db.query(&query_str).await;
+    return match query {
+        Ok(query) => {
+            let result = query[0].output();
+            if result.is_ok() {
+                Ok(JsonStatus {
+                    status_code: Status::Ok,
+                    status: true,
+                    message: "Order successfully deleted",
                 })
             } else {
                 Err(Status::BadRequest)

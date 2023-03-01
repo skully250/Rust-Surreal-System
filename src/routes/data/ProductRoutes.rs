@@ -16,12 +16,13 @@ pub fn product_routes() -> Vec<Route> {
         get_models,
         add_model,
         edit_model,
+        restore_model,
         delete_model,
         get_actions,
         create_action,
         update_action,
         delete_action,
-        get_db_actions
+        get_db_actions,
     ];
     return routes;
 }
@@ -57,6 +58,15 @@ async fn edit_model(
     //This may change in future depending on how frontend handles ID's
     let db_name = format!("models:{model_id}");
     return controllers::ModelController::edit_model(db, model.into_inner(), db_name).await;
+}
+
+#[post("/models/<model_id>")]
+async fn restore_model(
+    db: &State<SurrealRepo>,
+    model_id: String,
+) -> Result<JsonStatus<&str>, Status> {
+    let db_name = format!("models:{model_id}");
+    return controllers::ModelController::restore_model(db, db_name).await;
 }
 
 #[delete("/models/<model_id>")]

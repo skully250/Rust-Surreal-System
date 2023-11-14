@@ -8,22 +8,27 @@ mod util;
 extern crate rocket;
 extern crate dotenv;
 
-use std::{sync::RwLock, default, collections::HashMap};
+use std::{collections::HashMap, default};
 
 use dotenv::dotenv;
-use models::{ProductModels::{ActionList, DBAction}, AuthModels::AuthAdmin};
+use models::{
+    AuthModels::AuthAdmin,
+    ProductModels::{ActionList, DBAction},
+};
 use rocket::{
     http::{CookieJar, Status},
+    response::content::RawJson,
     serde::json::Json,
-    State, response::content::RawJson,
+    tokio::sync::RwLock,
+    State,
 };
 
 use repository::SurrealRepo::{DBConfig, SurrealRepo};
-use routes::data::{CustomerRoutes, OrderRoutes, ProductRoutes, UserRoutes};
+//use routes::data::{CustomerRoutes, OrderRoutes, ProductRoutes, UserRoutes};
 use surrealdb::sql::Value;
 use util::responders::JsonStatus;
 
-use crate::models::{UserModels::UserDTO, AuthModels::AuthUser};
+use crate::models::{AuthModels::AuthUser, UserModels::UserDTO};
 
 //Come back to responders and find a better way to handle them
 #[catch(422)]
@@ -76,9 +81,10 @@ fn not_implemented() -> JsonStatus<&'static str> {
 async fn exec_query(db: &State<SurrealRepo>, query: &str) -> Result<serde_json::Value, Status> {
     let exec = db.query(query).await;
     return match exec {
-        Ok(query) => {
+        Ok(mut query) => {
             println!("{:?}", query);
-            let query_result = query[0].output().unwrap();
+            let query_result: Value = query.take(0).unwrap();
+            //let query_result = query[0].output().unwrap();
             if let Value::Array(rows) = query_result {
                 let query_return = serde_json::json!(&rows);
                 Ok(query_return)
@@ -107,47 +113,50 @@ async fn logged_in<'a>(_user: AuthUser) -> JsonStatus<&'a str> {
     JsonStatus {
         status_code: Status::Accepted,
         status: true,
-        message: "You are currently logged in"
+        message: "You are currently logged in",
     }
 }
 
 async fn get_actions(db: &SurrealRepo) -> ActionList {
-    let query = db.find_where(None, "actions", "active = true").await.expect("Unable to fetch actions from DB");
+    /*let mut query = db
+    .find_where(None, "actions", "active = true")
+    .await
+    .expect("Unable to fetch actions from DB");*/
+    let mut query: Vec<DBAction> = db
+        .find_all("actions")
+        .await
+        .expect("Unable to fetch actions from DB");
+    println!("{:?}", query);
     let mut action_list: Vec<String> = vec![];
-    let actions = query[0].output().unwrap();
-    if let Value::Array(rows) = actions {
-        let actions: Vec<DBAction> = serde_json::from_value(serde_json::json!(&rows)).expect("Failed to convert data");
-        for action in actions.iter() {
-            action_list.push(action.name.to_string());
-        }
-    } else {
-        //We just return an empty action list
+    //let actions = query[0].output().unwrap();
+    for action in query.iter() {
+        action_list.push(action.name.to_string());
     }
     return ActionList {
-        actions: RwLock::new(action_list)
-    }
+        actions: RwLock::new(action_list),
+    };
 }
 
 #[launch]
 async fn rocket() -> _ {
     dotenv().ok();
     let config = DBConfig {
-        path: "file://surreal.db",
+        path: "/Fae Web Design/rust_orders/surreal.db",
         ns: "test",
         db: "test",
     };
     let surreal = SurrealRepo::init(config).await;
     //Create a list of current actions upon the initialization of the application
-    //That will be tracked and updated with 
+    //That will be tracked and updated with
     let actions = get_actions(&surreal).await;
     rocket::build()
         .manage(surreal)
         .manage(actions)
         .mount("/api", routes![login_user, exec_query, logged_in])
-        .mount("/api/orders", OrderRoutes::order_routes())
-        .mount("/api/products", ProductRoutes::product_routes())
-        .mount("/api/customers", CustomerRoutes::customer_routes())
-        .mount("/api/users", UserRoutes::user_routes())
+        //.mount("/api/orders", OrderRoutes::order_routes())
+        //.mount("/api/products", ProductRoutes::product_routes())
+        //.mount("/api/customers", CustomerRoutes::customer_routes())
+        //.mount("/api/users", UserRoutes::user_routes())
         .register(
             "/api",
             catchers![

@@ -8,6 +8,7 @@ use rocket::{
     State,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Serialize)]
 pub struct LoginResponse {
@@ -48,17 +49,25 @@ fn grab_token<'a>(req: &Request) -> Result<TokenData<Claims>, &'a str> {
     return Ok(decoded);
 }
 
-async fn get_role(db: &SurrealRepo, token: &TokenData<Claims>) -> String {
+async fn get_role<'a>(db: &SurrealRepo, token: &TokenData<Claims>) -> Result<String, &'a str> {
     let where_statement = format!("username = '{0}'", token.claims.sub);
-    let db_query = db
-        .find_where(Some("role"), "users", &where_statement)
+    let mut db_query = db
+        .find_where("users", Some("role"), &where_statement)
         .await
         .unwrap();
     println!("{:?}", db_query);
-    let user = serde_json::json!(db_query);
+
+    let user: Option<Value> = db_query.take("result").unwrap();
 
     //Might move this into a struct rather than destructuring the json like this
-    return user[0]["result"][0]["role"].as_str().unwrap().to_string();
+    match user {
+        Some(user) => {
+            return Ok(user[0]["role"].as_str().unwrap().to_string());
+        }
+        None => {
+            return Err("Error fetching user");
+        }
+    }
 }
 
 #[rocket::async_trait]
@@ -75,12 +84,19 @@ impl<'r> FromRequest<'r> for AuthUser {
         match token {
             Ok(token) => {
                 let user_role = get_role(db, &token).await;
-                println!("{:?}", user_role);
-                if (user_role != "User") && (user_role != "Admin") {
-                    return request::Outcome::Failure((
-                        Status::Unauthorized,
-                        "Failed to validate user",
-                    ));
+                match user_role {
+                    Ok(user_role) => {
+                        println!("{:?}", user_role);
+                        if (user_role != "User") && (user_role != "Admin") {
+                            return request::Outcome::Error((
+                                Status::Unauthorized,
+                                "Failed to validate user",
+                            ));
+                        }
+                    }
+                    Err(error) => {
+                        return request::Outcome::Error((Status::Unauthorized, error));
+                    }
                 }
 
                 return request::Outcome::Success(AuthUser {
@@ -88,7 +104,7 @@ impl<'r> FromRequest<'r> for AuthUser {
                 });
             }
             Err(e) => {
-                return request::Outcome::Failure((Status::Unauthorized, e));
+                return request::Outcome::Error((Status::Unauthorized, e));
             }
         }
     }
@@ -108,11 +124,18 @@ impl<'r> FromRequest<'r> for AuthAdmin {
         match token {
             Ok(token) => {
                 let user_role = get_role(db, &token).await;
-                if user_role != "Admin" {
-                    return request::Outcome::Failure((
-                        Status::Unauthorized,
-                        "Failed to validate user",
-                    ));
+                match user_role {
+                    Ok(user_role) => {
+                        if user_role != "Admin" {
+                            return request::Outcome::Error((
+                                Status::Unauthorized,
+                                "Failed to validate user",
+                            ));
+                        }
+                    }
+                    Err(error) => {
+                        return request::Outcome::Error((Status::Unauthorized, error));
+                    }
                 }
 
                 return request::Outcome::Success(AuthAdmin {
@@ -120,7 +143,7 @@ impl<'r> FromRequest<'r> for AuthAdmin {
                 });
             }
             Err(e) => {
-                return request::Outcome::Failure((Status::Unauthorized, e));
+                return request::Outcome::Error((Status::Unauthorized, e));
             }
         }
     }

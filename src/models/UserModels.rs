@@ -79,7 +79,7 @@ impl From<&UserRole> for String {
 }
 
 //Will add more metadata to users later as expectations expand
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DBUser {
     id: String,
     pub username: String,

@@ -1,15 +1,16 @@
-use std::{collections::HashMap, sync::RwLock, fmt::Display};
+use std::{collections::HashMap, fmt::Display};
 
+use rocket::tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Datetime;
 
 //Actions
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DBAction {
     pub id: String,
     pub name: String,
-    pub active: bool
+    pub active: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -25,20 +26,27 @@ pub struct ActionDTO {
     pub action: Action,
 }
 
-#[derive(Serialize)]
 pub struct ActionList {
-    pub actions: RwLock<Vec<String>>
+    pub actions: RwLock<Vec<String>>,
 }
 
 impl Display for ActionList {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let actions = self.actions.read().unwrap().to_vec();
-        let mut comma_string = String::new();
-        for entry in actions {
-            comma_string.push_str(&entry);
-            comma_string.push_str(", ");
+        let actions = self.actions.try_read();
+
+        match actions {
+            Ok(actions) => {
+                let mut comma_string = String::new();
+                for entry in actions.iter() {
+                    comma_string.push_str(entry);
+                    comma_string.push_str(", ");
+                }
+                return write!(f, "{}", comma_string);
+            }
+            Err(err) => {
+                return write!(f, "Error occurred trying to read RWLock");
+            }
         }
-        return write!(f, "{}", comma_string);
     }
 }
 
@@ -75,14 +83,14 @@ enum ProductModel {
 #[serde(untagged)]
 enum ProductQuantity {
     Single(Action),
-    Multiple(Vec<Action>)
+    Multiple(Vec<Action>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DBProduct {
     index: u8,
     model: DBModel,
-    actions: Option<HashMap<String, ProductQuantity>>
+    actions: Option<HashMap<String, ProductQuantity>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

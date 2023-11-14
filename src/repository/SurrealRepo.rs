@@ -1,6 +1,12 @@
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::fmt::Debug;
-use surrealdb::{sql::Value, Datastore, Response, Session};
+use surrealdb::{
+    dbs::Session,
+    engine::local::{Db, RocksDb},
+    iam::Level,
+    iam::Role,
+    Response, Surreal,
+};
 
 //Trait for use as implementation on data types that interact with the DB
 #[rocket::async_trait]
@@ -11,18 +17,6 @@ where
     async fn find(db: &SurrealRepo) -> Result<T, surrealdb::Error>;
     async fn find_where(db: &SurrealRepo) -> Result<Vec<T>, surrealdb::Error>;
     async fn find_all(db: &SurrealRepo) -> Result<Vec<T>, surrealdb::Error>;
-
-    //Default function for find all that can be called from find_all in implementations
-    fn default_find_all(query: Vec<Response>) -> Result<Vec<T>, surrealdb::Error> {
-        let query_result = query[0].output().unwrap();
-        if let Value::Array(rows) = query_result {
-            let json_rows = serde_json::json!(&rows);
-            let found: Vec<T> = serde_json::from_value(json_rows).expect("Failed");
-            Ok(found)
-        } else {
-            Err(surrealdb::Error::QueryCancelled)
-        }
-    }
 
     async fn create(db: &SurrealRepo) -> Result<bool, surrealdb::Error>;
     async fn update(db: &SurrealRepo) -> Result<bool, surrealdb::Error>;
@@ -35,17 +29,21 @@ pub struct DBConfig<'a> {
 }
 
 pub struct SurrealRepo {
-    ds: Datastore,
+    ds: Surreal<Db>,
     ses: Session,
 }
 
 //Look into potentialy using generics in future
 impl SurrealRepo {
     pub async fn init(config: DBConfig<'_>) -> Self {
-        let ds = Datastore::new(config.path)
+        let ds = Surreal::new::<RocksDb>(config.path)
             .await
             .expect("Error occured connecting to surreal");
-        let ses = Session::for_db(config.ns, config.db);
+        let ses = Session::for_level(
+            Level::Database(String::from(config.ns), String::from(config.db)),
+            Role::Owner,
+        );
+        ds.use_ns(config.ns).use_db(config.db).await.unwrap();
         return SurrealRepo { ds, ses };
     }
 
@@ -58,60 +56,83 @@ impl SurrealRepo {
 
     pub async fn find_where(
         &self,
-        selection: Option<&str>,
         collection: &str,
+        selection: Option<&str>,
         find_statement: &str,
-    ) -> Result<Vec<Response>, surrealdb::Error> {
-        let db_query: String = match selection {
-            Some(sel_string) => {
-                format!("SELECT {sel_string} FROM {collection} WHERE {find_statement}")
-            }
-            None => format!("SELECT * FROM {collection} WHERE {find_statement}"),
+    ) -> Result<Response, surrealdb::Error> {
+        //let array = HashMap::from()
+        let sel_string = if Option::is_some(&selection) {
+            selection.unwrap()
+        } else {
+            "*"
         };
-        return self.ds.execute(&db_query, &self.ses, None, false).await;
+
+        let query = self
+            .ds
+            .query("SELECT $sel_string FROM type::table($collection) WHERE $find_statement")
+            .bind(("sel_string", sel_string))
+            .bind(("collection", collection))
+            .bind(("find_statement", find_statement))
+            .await;
+
+        println!("Query: {:?}", query);
+
+        return query;
     }
 
-    pub async fn find(
+    pub async fn find_all<T: DeserializeOwned>(
         &self,
-        selection: Option<&str>,
         collection: &str,
-    ) -> Result<Vec<Response>, surrealdb::Error> {
-        let db_query = match selection {
-            Some(query_string) => format!("SELECT {query_string} FROM {collection}"),
-            None => format!("SELECT * FROM {collection}"),
-        };
-        return self.ds.execute(&db_query, &self.ses, None, false).await;
+    ) -> Result<Vec<T>, surrealdb::Error> {
+        let response: Vec<T> = self.ds.select(collection).await?;
+        return Ok(response);
     }
 
-    pub async fn create<T: Serialize + Debug>(
+    pub async fn find<T: DeserializeOwned>(
         &self,
-        name: &str,
-        content: T,
-        has_name: Option<String>,
-    ) -> Result<Vec<Response>, surrealdb::Error> {
-        let db_name = match has_name {
-            Some(some_name) => format!("{name}:{some_name}"),
-            None => format!("{name}"),
-        };
-        let query = format!(
-            "CREATE {0} CONTENT {1}",
-            db_name,
-            self::SurrealRepo::get_json(content)
-        );
-        return self.ds.execute(&query, &self.ses, None, false).await;
+        collection: &str,
+        selection: &str,
+    ) -> Result<T, surrealdb::Error> {
+        let response: Option<T> = self.ds.select((collection, selection)).await?;
+        return Ok(response.unwrap());
     }
 
-    pub async fn update<T: Serialize + Debug>(
+    pub async fn create_named<T>(
         &self,
         name: &str,
+        id: &str,
         content: T,
-    ) -> Result<Vec<Response>, surrealdb::Error> {
-        let query = format!(
-            "UPDATE {0} MERGE {1}",
-            name,
-            self::SurrealRepo::get_json(content)
-        );
-        return self.ds.execute(&query, &self.ses, None, false).await;
+    ) -> Result<T, surrealdb::Error>
+    where
+        T: Serialize + DeserializeOwned + Debug,
+    {
+        let response: Option<T> = self.ds.create((name, id)).content(content).await?;
+        return Ok(response.unwrap());
+    }
+
+    pub async fn create<T>(&self, name: &str, content: T) -> Result<Vec<T>, surrealdb::Error>
+    where
+        T: Serialize + DeserializeOwned + Debug,
+    {
+        let response: Vec<T> = self.ds.create(name).content(content).await?;
+        return Ok(response);
+    }
+
+    pub async fn update<T>(
+        &self,
+        collection: &str,
+        selection: &str,
+        content: T,
+    ) -> Result<Option<T>, surrealdb::Error>
+    where
+        T: Serialize + DeserializeOwned + Debug,
+    {
+        let response: Option<T> = self
+            .ds
+            .update((collection, selection))
+            .merge(content)
+            .await?;
+        return Ok(response);
     }
 
     pub async fn update_where<T: Serialize + Debug>(
@@ -119,14 +140,16 @@ impl SurrealRepo {
         name: &str,
         content: T,
         find_statement: &str,
-    ) -> Result<Vec<Response>, surrealdb::Error> {
-        let query = format!(
-            "UPDATE {0} MERGE {1} WHERE {2}",
-            name,
-            self::SurrealRepo::get_json(content),
-            find_statement
-        );
-        return self.ds.execute(&query, &self.ses, None, false).await;
+    ) -> Result<Response, surrealdb::Error> {
+        return self
+            .ds
+            .query("UPDATE $name MERGE $content WHERE $find_statement")
+            .bind([
+                ("name", name),
+                ("content", &self::SurrealRepo::get_json(content).to_string()),
+                ("find_statement", find_statement),
+            ])
+            .await;
     }
 
     pub async fn relate(
@@ -135,18 +158,30 @@ impl SurrealRepo {
         action: &str,
         to: &str,
         content: &str,
-    ) -> Result<Vec<Response>, surrealdb::Error> {
-        let query = format!("RELATE {from}->{action}->{to} SET {content}");
-        return self.ds.execute(&query, &self.ses, None, false).await;
+    ) -> Result<Response, surrealdb::Error> {
+        return self
+            .ds
+            .query("RELATE $from->type::table($action)->$to SET $content")
+            .bind([
+                ("from", from),
+                ("action", action),
+                ("to", to),
+                ("content", content),
+            ])
+            .await;
     }
 
-    pub async fn delete(&self, item_id: String) -> Result<Vec<Response>, surrealdb::Error> {
-        //TODO: Check for : to ensure that whole tables arent deleted accidentally
-        let query = format!("DELETE {0} RETURN BEFORE", item_id);
-        return self.ds.execute(&query, &self.ses, None, false).await;
+    pub async fn delete<T>(&self, collection: &str, item: &str) -> Result<T, surrealdb::Error>
+    where
+        T: Serialize + DeserializeOwned + Debug,
+    {
+        let response: Option<T> = self.ds.delete((collection, item)).await?;
+        return Ok(response.unwrap());
     }
 
-    pub async fn query(&self, query: &str) -> Result<Vec<Response>, surrealdb::Error> {
-        return self.ds.execute(query, &self.ses, None, false).await;
+    //TODO: Find out why query is broken - it simply returns whatever text is sent into it currently
+    pub async fn query(&self, query: &str) -> Result<Response, surrealdb::Error> {
+        let mut query = self.ds.query(query).await?;
+        return Ok(query);
     }
 }

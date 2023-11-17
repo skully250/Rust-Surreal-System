@@ -54,12 +54,12 @@ impl SurrealRepo {
         return serde_json::json!(content);
     }
 
-    pub async fn find_where(
+    pub async fn find_where<T: DeserializeOwned>(
         &self,
         collection: &str,
         selection: Option<&str>,
         find_statement: &str,
-    ) -> Result<Response, surrealdb::Error> {
+    ) -> Result<Vec<T>, surrealdb::Error> {
         //let array = HashMap::from()
         let sel_string = if Option::is_some(&selection) {
             selection.unwrap()
@@ -67,17 +67,17 @@ impl SurrealRepo {
             "*"
         };
 
-        let query = self
+        let mut query = self
             .ds
             .query("SELECT $sel_string FROM type::table($collection) WHERE $find_statement")
             .bind(("sel_string", sel_string))
             .bind(("collection", collection))
             .bind(("find_statement", find_statement))
-            .await;
+            .await?;
 
         println!("Query: {:?}", query);
 
-        return query;
+        return query.take(0);
     }
 
     pub async fn find_all<T: DeserializeOwned>(
@@ -99,14 +99,14 @@ impl SurrealRepo {
 
     pub async fn create_named<T>(
         &self,
-        name: &str,
+        collection: &str,
         id: &str,
         content: T,
     ) -> Result<T, surrealdb::Error>
     where
         T: Serialize + DeserializeOwned + Debug,
     {
-        let response: Option<T> = self.ds.create((name, id)).content(content).await?;
+        let response: Option<T> = self.ds.create((collection, id)).content(content).await?;
         return Ok(response.unwrap());
     }
 

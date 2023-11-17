@@ -1,6 +1,5 @@
 use rocket::{http::Status, State};
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Value;
 
 use crate::{
     models::ProductModels::{ActionDTO, ActionList, DBAction},
@@ -8,7 +7,7 @@ use crate::{
     SurrealRepo,
 };
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ActionDetails {
     name: String,
     active: bool,
@@ -36,19 +35,9 @@ pub async fn action_product<'a>(
 }
 
 pub async fn get_actions(db: &SurrealRepo) -> Result<Vec<DBAction>, Status> {
-    let query = db.find(None, "actions").await;
+    let query: Result<Vec<DBAction>, surrealdb::Error> = db.find_all("actions").await;
     return match query {
-        Ok(query_result) => {
-            let result_entry = query_result[0].output().unwrap();
-            if let Value::Array(rows) = result_entry {
-                println!("{:?}", rows);
-                let actions: Vec<DBAction> = serde_json::from_value(serde_json::json!(&rows))
-                    .expect("Failed to parse actions");
-                Ok(actions)
-            } else {
-                Err(Status::BadRequest)
-            }
-        }
+        Ok(query_result) => Ok(query_result),
         Err(_) => Err(Status::BadRequest),
     };
 }
@@ -56,26 +45,28 @@ pub async fn get_actions(db: &SurrealRepo) -> Result<Vec<DBAction>, Status> {
 pub async fn create_action<'a>(
     db: &SurrealRepo,
     actions: &State<ActionList>,
-    action_name: String,
+    action_name: &str,
 ) -> Result<JsonStatus<&'a str>, Status> {
-    let action_details = ActionDetails {
-        name: action_name,
-        active: true,
-    };
     let query = db
-        .create("actions", serde_json::json!(action_details), None)
+        .create_named(
+            "actions",
+            &action_name,
+            ActionDetails {
+                name: action_name.to_owned(),
+                active: true,
+            },
+        )
         .await;
-    let mut actions = actions
-        .actions
-        .write()
-        .expect("Could not open writeable reference");
-    actions.push(action_details.name);
     return match query {
-        Ok(_query_result) => Ok(JsonStatus {
-            status_code: Status::Ok,
-            status: true,
-            message: "Successfully created test action",
-        }),
+        Ok(_query_result) => {
+            let mut actions = actions.actions.write().await;
+            actions.push(action_name.to_string());
+            Ok(JsonStatus {
+                status_code: Status::Ok,
+                status: true,
+                message: "Successfully created test action",
+            })
+        }
         Err(_) => Err(Status::BadRequest),
     };
 }
@@ -85,80 +76,54 @@ pub async fn update_action<'a>(
     action_list: &State<ActionList>,
     action_name: String,
     active: bool,
-) -> JsonStatus<&'a str> {
+) -> Result<JsonStatus<&'a str>, Status> {
     let action_details = ActionDetails {
         name: action_name,
         active: active,
     };
-    let where_statement = format!("name = '{0}'", action_details.name);
-    let query = db
-        .update_where(
-            "actions",
-            serde_json::json!(action_details),
-            &where_statement,
-        )
-        .await
-        .unwrap();
+    let act_name = action_details.name.clone();
+    let query = db.update("actions", &act_name, action_details).await;
+    return match query {
+        Ok(_) => {
+            let mut actions = action_list.actions.write().await;
 
-    let empty_query = query[0].output().unwrap().first().is_none();
+            let index = actions.iter().position(|action| action.eq(&act_name));
 
-    println!("{:?}", empty_query);
-
-    let mut actions = action_list
-        .actions
-        .write()
-        .expect("Could not open writeable reference");
-
-    let index = actions
-        .iter()
-        .position(|action| action.eq(&action_details.name));
-
-    match active {
-        true => {
-            if empty_query {
-                return JsonStatus {
-                    status_code: Status::NotFound,
-                    status: false,
-                    message: "Action doesnt exist",
-                };
-            }
-            if index.is_some() {
-                return JsonStatus {
-                    status_code: Status::NotModified,
-                    status: true,
-                    message: "Action already active",
-                };
-            } else {
-                actions.push(action_details.name);
-                return JsonStatus {
-                    status_code: Status::Ok,
-                    status: true,
-                    message: "Successfully activated action",
-                };
+            match active {
+                true => {
+                    if index.is_some() {
+                        return Ok(JsonStatus {
+                            status_code: Status::NotModified,
+                            status: true,
+                            message: "Action already active",
+                        });
+                    } else {
+                        actions.push(act_name);
+                        return Ok(JsonStatus {
+                            status_code: Status::Ok,
+                            status: true,
+                            message: "Successfully activated action",
+                        });
+                    }
+                }
+                false => {
+                    if index.is_some() {
+                        actions.remove(index.unwrap());
+                        return Ok(JsonStatus {
+                            status_code: Status::Ok,
+                            status: true,
+                            message: "Action archived",
+                        });
+                    } else {
+                        return Ok(JsonStatus {
+                            status_code: Status::NotFound,
+                            status: false,
+                            message: "Action doesnt exist",
+                        });
+                    }
+                }
             }
         }
-        false => {
-            if empty_query {
-                return JsonStatus {
-                    status_code: Status::NotFound,
-                    status: false,
-                    message: "Action doesnt exist",
-                };
-            }
-            if index.is_some() {
-                actions.remove(index.unwrap());
-                return JsonStatus {
-                    status_code: Status::Ok,
-                    status: true,
-                    message: "Action archived",
-                };
-            } else {
-                return JsonStatus {
-                    status_code: Status::NotFound,
-                    status: false,
-                    message: "Action doesnt exist",
-                };
-            }
-        }
-    }
+        Err(_) => Err(Status::BadRequest),
+    };
 }

@@ -8,22 +8,17 @@ mod util;
 extern crate rocket;
 extern crate dotenv;
 
-use std::{collections::HashMap, default};
-
 use dotenv::dotenv;
-use models::{
-    AuthModels::AuthAdmin,
-    ProductModels::{ActionList, DBAction},
-};
+use models::ProductModels::{ActionList, DBAction};
 use rocket::{
     http::{CookieJar, Status},
-    response::content::RawJson,
     serde::json::Json,
     tokio::sync::RwLock,
     State,
 };
 
 use repository::SurrealRepo::{DBConfig, SurrealRepo};
+use routes::data::ProductRoutes;
 //use routes::data::{CustomerRoutes, OrderRoutes, ProductRoutes, UserRoutes};
 use surrealdb::sql::Value;
 use util::responders::JsonStatus;
@@ -118,17 +113,12 @@ async fn logged_in<'a>(_user: AuthUser) -> JsonStatus<&'a str> {
 }
 
 async fn get_actions(db: &SurrealRepo) -> ActionList {
-    /*let mut query = db
-    .find_where(None, "actions", "active = true")
-    .await
-    .expect("Unable to fetch actions from DB");*/
-    let mut query: Vec<DBAction> = db
+    let query: Vec<DBAction> = db
         .find_all("actions")
         .await
         .expect("Unable to fetch actions from DB");
     println!("{:?}", query);
     let mut action_list: Vec<String> = vec![];
-    //let actions = query[0].output().unwrap();
     for action in query.iter() {
         action_list.push(action.name.to_string());
     }

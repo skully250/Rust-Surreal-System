@@ -51,21 +51,26 @@ fn grab_token<'a>(req: &Request) -> Result<TokenData<Claims>, &'a str> {
 
 async fn get_role<'a>(db: &SurrealRepo, token: &TokenData<Claims>) -> Result<String, &'a str> {
     let where_statement = format!("username = '{0}'", token.claims.sub);
-    let mut db_query = db
-        .find_where("users", Some("role"), &where_statement)
-        .await
-        .unwrap();
-    println!("{:?}", db_query);
+    let db_query: Result<Vec<String>, surrealdb::Error> =
+        db.find_where("users", Some("role"), &where_statement).await;
 
-    let user: Option<Value> = db_query.take("result").unwrap();
+    match db_query {
+        Ok(query) => {
+            println!("{:?}", query);
 
-    //Might move this into a struct rather than destructuring the json like this
-    match user {
-        Some(user) => {
-            return Ok(user[0]["role"].as_str().unwrap().to_string());
-        }
-        None => {
-            return Err("Error fetching user");
+            let user: Option<&String> = query.first();
+
+            //Might move this into a struct rather than destructuring the json like this
+            match user {
+                Some(user) => {
+                    return Ok(user.to_string());
+                }
+                None => {
+                    return Err("Error fetching user");
+                }
+            }
+        }, Err(err) => {
+            Err("error running db query")
         }
     }
 }

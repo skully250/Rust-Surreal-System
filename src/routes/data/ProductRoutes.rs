@@ -83,23 +83,27 @@ async fn delete_model(
 #[get("/actions/db")]
 async fn get_db_actions(db: &State<SurrealRepo>) -> Result<Json<Vec<DBAction>>, Status> {
     let query = controllers::ActionController::get_actions(db).await;
-    return match query {
-        Ok(actions) => Ok(Json(actions)),
-        Err(e) => Err(e),
-    };
+    match query {
+        Ok(query) => {
+            Ok(Json(query))
+        },
+        Err(err) => {
+            Err(err)
+        }
+    }
 }
 
 #[get("/actions")]
 async fn get_actions(action_list: &State<ActionList>) -> Json<Vec<String>> {
-    let actions = action_list.actions.read().unwrap().to_vec();
-    return Json(actions);
+    let actions = action_list.actions.read().await;
+    return Json(actions.to_vec());
 }
 
 #[post("/actions/<action_name>")]
 async fn create_action<'a>(
     db: &State<SurrealRepo>,
     action: &State<ActionList>,
-    action_name: String,
+    action_name: &str,
 ) -> Result<JsonStatus<&'a str>, Status> {
     return controllers::ActionController::create_action(db, action, action_name).await;
 }
@@ -109,7 +113,7 @@ async fn update_action<'a>(
     db: &State<SurrealRepo>,
     action_list: &State<ActionList>,
     action_name: String,
-) -> JsonStatus<&'a str> {
+) -> Result<JsonStatus<&'a str>, Status> {
     return controllers::ActionController::update_action(db, action_list, action_name, true).await;
 }
 
@@ -118,6 +122,6 @@ async fn delete_action<'a>(
     db: &State<SurrealRepo>,
     action_list: &State<ActionList>,
     action_name: String,
-) -> JsonStatus<&'a str> {
+) -> Result<JsonStatus<&'a str>, Status> {
     return controllers::ActionController::update_action(db, action_list, action_name, false).await;
 }

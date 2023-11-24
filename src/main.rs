@@ -19,8 +19,6 @@ use rocket::{
 
 use repository::SurrealRepo::{DBConfig, SurrealRepo};
 use routes::data::ProductRoutes;
-//use routes::data::{CustomerRoutes, OrderRoutes, ProductRoutes, UserRoutes};
-use surrealdb::sql::Value;
 use util::responders::JsonStatus;
 
 use crate::models::{AuthModels::AuthUser, UserModels::UserDTO};
@@ -71,29 +69,6 @@ fn not_implemented() -> JsonStatus<&'static str> {
     }
 }
 
-//Function to test the DB in dev, will be removed for prod
-#[post("/query", data = "<query>")]
-async fn exec_query(db: &State<SurrealRepo>, query: &str) -> Result<serde_json::Value, Status> {
-    let exec = db.query(query).await;
-    return match exec {
-        Ok(mut query) => {
-            println!("{:?}", query);
-            let query_result: Value = query.take(0).unwrap();
-            //let query_result = query[0].output().unwrap();
-            if let Value::Array(rows) = query_result {
-                let query_return = serde_json::json!(&rows);
-                Ok(query_return)
-            } else {
-                Err(Status::BadRequest)
-            }
-        }
-        Err(e) => {
-            println!("{:?}", e);
-            Err(Status::BadRequest)
-        }
-    };
-}
-
 #[post("/login", format = "json", data = "<user>")]
 async fn login_user<'a>(
     db: &State<SurrealRepo>,
@@ -131,7 +106,7 @@ async fn get_actions(db: &SurrealRepo) -> ActionList {
 async fn rocket() -> _ {
     dotenv().ok();
     let config = DBConfig {
-        path: "/Fae Web Design/rust_orders/surreal.db",
+        path: "127.0.0.1:8000",
         ns: "test",
         db: "test",
     };
@@ -142,9 +117,9 @@ async fn rocket() -> _ {
     rocket::build()
         .manage(surreal)
         .manage(actions)
-        .mount("/api", routes![login_user, exec_query, logged_in])
+        .mount("/api", routes![login_user, logged_in])
         //.mount("/api/orders", OrderRoutes::order_routes())
-        //.mount("/api/products", ProductRoutes::product_routes())
+        .mount("/api/products", ProductRoutes::product_routes())
         //.mount("/api/customers", CustomerRoutes::customer_routes())
         //.mount("/api/users", UserRoutes::user_routes())
         .register(

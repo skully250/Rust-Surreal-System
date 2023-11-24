@@ -1,5 +1,4 @@
 use rocket::http::Status;
-use surrealdb::sql::Value;
 
 use crate::{models::ProductModels, util::responders::JsonStatus, SurrealRepo};
 
@@ -12,11 +11,11 @@ pub async fn get_models(
         query = db.find_all("models").await;
     } else {
         let query_string = format!("active != false");
-        query = db.find_where("models", None, &query_string).await;
+        query = db.find_all_where("models", &query_string).await;
     }
     return match query {
         Ok(query) => {
-            println!("{:?}", &query);
+            println!("Query Return: {:?}", &query);
             Ok(query)
         }
         Err(_) => Err(Status::InternalServerError),
@@ -80,7 +79,7 @@ pub async fn delete_model(
     let query_string = format!("UPDATE {0} SET active = false", product_id);
     let query = db.query(&query_string).await;
     return match query {
-        Ok(query) => Ok(JsonStatus {
+        Ok(_) => Ok(JsonStatus {
             status_code: Status::Ok,
             status: true,
             message: "Successfully removed model",

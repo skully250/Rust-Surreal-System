@@ -52,7 +52,7 @@ fn grab_token<'a>(req: &Request) -> Result<TokenData<Claims>, &'a str> {
 async fn get_role<'a>(db: &SurrealRepo, token: &TokenData<Claims>) -> Result<String, &'a str> {
     let where_statement = format!("username = '{0}'", token.claims.sub);
     let db_query: Result<Vec<String>, surrealdb::Error> =
-        db.find_where("users", Some("role"), &where_statement).await;
+        db.find_where("users", "role", &where_statement).await;
 
     match db_query {
         Ok(query) => {

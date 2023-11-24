@@ -2,13 +2,13 @@ use std::{collections::HashMap, fmt::Display};
 
 use rocket::tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Datetime;
+use surrealdb::sql::{Datetime, Thing};
 
 //Actions
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DBAction {
-    pub id: String,
+    pub id: Thing,
     pub name: String,
     pub active: bool,
 }
@@ -56,7 +56,7 @@ impl Display for ActionList {
 //32x32m || 32cm x 10m || 32x10x30 || 32kg || 320g
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DBModel {
-    id: String,
+    id: Thing,
     name: String,
     price: u32,
     weight: String,

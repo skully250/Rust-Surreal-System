@@ -1,10 +1,8 @@
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::fmt::Debug;
 use surrealdb::{
-    dbs::Session,
-    engine::local::{Db, RocksDb},
-    iam::Level,
-    iam::Role,
+    engine::remote::ws::{Client, Ws},
+    opt::PatchOp,
     Response, Surreal,
 };
 
@@ -29,22 +27,17 @@ pub struct DBConfig<'a> {
 }
 
 pub struct SurrealRepo {
-    ds: Surreal<Db>,
-    ses: Session,
+    ds: Surreal<Client>,
 }
 
 //Look into potentialy using generics in future
 impl SurrealRepo {
     pub async fn init(config: DBConfig<'_>) -> Self {
-        let ds = Surreal::new::<RocksDb>(config.path)
+        let ds = Surreal::new::<Ws>(config.path)
             .await
             .expect("Error occured connecting to surreal");
-        let ses = Session::for_level(
-            Level::Database(String::from(config.ns), String::from(config.db)),
-            Role::Owner,
-        );
         ds.use_ns(config.ns).use_db(config.db).await.unwrap();
-        return SurrealRepo { ds, ses };
+        return SurrealRepo { ds };
     }
 
     fn get_json<T>(content: T) -> serde_json::Value
@@ -54,26 +47,36 @@ impl SurrealRepo {
         return serde_json::json!(content);
     }
 
+    pub async fn find_all_where<T: DeserializeOwned>(
+        &self,
+        collection: &str,
+        find_statement: &str,
+    ) -> Result<Vec<T>, surrealdb::Error> {
+        let mut query = self
+            .ds
+            .query("SELECT * FROM type::table($collection) WHERE $find")
+            .bind(("collection", collection))
+            .bind(("find", find_statement))
+            .await
+            .expect("Something went wrong");
+
+        return query.take(0);
+    }
+
     pub async fn find_where<T: DeserializeOwned>(
         &self,
         collection: &str,
-        selection: Option<&str>,
+        selection: &str,
         find_statement: &str,
     ) -> Result<Vec<T>, surrealdb::Error> {
-        //let array = HashMap::from()
-        let sel_string = if Option::is_some(&selection) {
-            selection.unwrap()
-        } else {
-            "*"
-        };
-
         let mut query = self
             .ds
             .query("SELECT $sel_string FROM type::table($collection) WHERE $find_statement")
-            .bind(("sel_string", sel_string))
+            .bind(("sel_string", selection))
             .bind(("collection", collection))
             .bind(("find_statement", find_statement))
-            .await?;
+            .await
+            .expect("Something went wrong");
 
         println!("Query: {:?}", query);
 
@@ -135,6 +138,24 @@ impl SurrealRepo {
         return Ok(response);
     }
 
+    pub async fn update_patch<T: Serialize + Debug>(
+        &self,
+        collection: &str,
+        selection: &str,
+        patch: PatchOp,
+    ) -> Result<Option<T>, surrealdb::Error>
+    where
+        T: Serialize + DeserializeOwned + Debug,
+    {
+        let response = self
+            .ds
+            .update((collection, selection))
+            .patch(patch)
+            .await
+            .unwrap();
+        return Ok(response);
+    }
+
     pub async fn update_where<T: Serialize + Debug>(
         &self,
         name: &str,
@@ -181,7 +202,7 @@ impl SurrealRepo {
 
     //TODO: Find out why query is broken - it simply returns whatever text is sent into it currently
     pub async fn query(&self, query: &str) -> Result<Response, surrealdb::Error> {
-        let mut query = self.ds.query(query).await?;
+        let query = self.ds.query(query).await.unwrap();
         return Ok(query);
     }
 }

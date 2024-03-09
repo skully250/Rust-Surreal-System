@@ -40,6 +40,13 @@ impl SurrealRepo {
         return SurrealRepo { ds };
     }
 
+    //Execute pre-constructed SurrealQL statements from elsewhere in the program
+    //Potentially dangerous?
+    pub async fn execute(sql_statement) {
+        let query = self.ds.execute(sql_statmement).await?
+        return Ok(query.unwrap());
+    }
+
     fn get_json<T>(content: T) -> serde_json::Value
     where
         T: Serialize + Debug,
@@ -202,7 +209,7 @@ impl SurrealRepo {
 
     //TODO: Find out why query is broken - it simply returns whatever text is sent into it currently
     pub async fn query(&self, query: &str) -> Result<Response, surrealdb::Error> {
-        let query = self.ds.query(query).await.unwrap();
+        let query = self.ds.query(query).await?.unwrap();
         return Ok(query);
     }
 }

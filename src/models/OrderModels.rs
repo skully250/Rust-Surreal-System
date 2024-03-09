@@ -3,7 +3,7 @@ use crate::{
     repository::SurrealRepo::{DBInteractions, SurrealRepo},
 };
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Datetime;
+use surrealdb::sql::{Datetime, Thing};
 
 use super::UserModels::DBUser;
 
@@ -21,17 +21,17 @@ pub struct OrderDTO {
 //DB Order will handle data fetched from the Database with an ID, whereas Order will just handle regular data
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DBOrder {
-    id: String,
-    customer: String,
-    products: OrderProducts,
+    id: Thing,
+    customer: Thing,
+    products: Option<OrderProducts>,
     removed: bool,
+    created_date: Datetime,
     due_date: Datetime,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Order {
     customer: String,
-    products: OrderProducts,
     removed: bool,
     due_date: Datetime,
 }
@@ -43,7 +43,7 @@ enum OrderProducts {
     Creating(Vec<ProductModels::ProductDTO>),
 }
 
-//Not sure if redacting or returning to Trait implementatinos of DB
+//Not sure if redacting or returning to Trait implementations of DB
 #[rocket::async_trait]
 impl DBInteractions<DBOrder> for DBOrder {
     async fn find(db: &SurrealRepo) -> Result<DBOrder, surrealdb::Error> {

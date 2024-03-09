@@ -20,6 +20,17 @@ where
     pub message: T,
 }
 
+impl JsonStatus<T> {
+    pub fn Created(item: &str) -> Self<&str> {
+        let message = format!("Successfully created {item}");
+        JsonStatus {
+            status_code: Status::Ok,
+            status: true,
+            message: message
+        }
+    }
+}
+
 impl<'r, T> Responder<'r, 'static> for JsonStatus<T>
 where
     T: Display + Serialize

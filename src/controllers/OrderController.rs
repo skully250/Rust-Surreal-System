@@ -66,6 +66,41 @@ pub async fn get_orders_by_user<'a>(
     };
 }
 
+//Transaction based function
+pub async fn create_order(db: &SurrealRepo, content: OrderModels::OrderDTO, user: &AuthModels::AuthUser) -> Result<JsonStatus<&'a str>, Status> {
+    let order: (Order, Vec<ProductDTO>)= OrderModels::Order;:new(content);
+    let order_data = serde_json::json!(order[0]).to_string();
+    let product_data = serde_json::json!(order[1]).to_string();
+    //Transaction to catch failed product or order insertion
+    //TODO: Work out how to deal with invoice creation mid transaction
+    //TODO: Find way to get ID while inside transaction (Alt: Generate ID before creation)
+    println!("{:?}", product_data);
+    let query_statement = surrealdb::Surreal<Client>.query(BeginStatement)
+    .query("CREATE orders CONTENT $order")
+    .query("INSERT INTO products [$products]")
+    .query("RELATE $user_id->created->$order_id SET time.created = time::now()")
+    .query(CommitStatement)
+    .bind(("order", order_data))
+    .bind(("products", product_data))
+
+    let query = db.execute(query_statement).await?;
+
+    return match query {
+        Ok(query) => {
+            let result_entry = query[0].output.expect("Error in creating entry");
+            Ok(JsonStatus::Created("order"))
+            /*Ok(JsonStatus {
+                status_code: Status::Ok,
+                status: true,
+                message: "Successfully created order"
+            })*/
+        },
+        Err(_) => {
+            Err(Status::InternalServerError)
+        }
+    }
+}
+
 //TODO: Turn into a transaction so that creating order -> relation fail doesnt result in stranded entries
 pub async fn create_order<'a>(
     db: &SurrealRepo,

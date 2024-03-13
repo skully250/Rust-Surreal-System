@@ -7,6 +7,9 @@ use rocket::{
 };
 use serde::Serialize;
 
+pub type ApiError = Box<dyn std::error::Error>;
+pub type ApiResult<T> = Result<T, ApiError>;
+
 //Creating multiple messages with different statuses to handle seperate types of responses
 
 #[derive(Serialize, Debug)]
@@ -20,13 +23,13 @@ where
     pub message: T,
 }
 
-impl JsonStatus<T> {
-    pub fn Created(item: &str) -> Self<&str> {
+impl JsonStatus<&str> {
+    pub fn created(item: &str) -> JsonStatus<&str> {
         let message = format!("Successfully created {item}");
         JsonStatus {
             status_code: Status::Ok,
             status: true,
-            message: message
+            message: message.as_str()
         }
     }
 }

@@ -1,11 +1,13 @@
 use rocket::http::Status;
 use serde::Deserialize;
-use surrealdb::sql::{Thing, Value};
+use serde_json::json;
+use surrealdb::{engine::remote::ws::Client, method::Query, sql::{self, statements::{BeginStatement, CommitStatement}, Thing, Value}, Surreal};
 
 use crate::{
     models::{
         AuthModels,
-        OrderModels::{self},
+        OrderModels::{self, Order},
+        ProductModels::ProductDTO
     },
     util::{
         responders::JsonStatus,
@@ -67,23 +69,29 @@ pub async fn get_orders_by_user<'a>(
 }
 
 //Transaction based function
-pub async fn create_order(db: &SurrealRepo, content: OrderModels::OrderDTO, user: &AuthModels::AuthUser) -> Result<JsonStatus<&'a str>, Status> {
-    let order: (Order, Vec<ProductDTO>)= OrderModels::Order;:new(content);
+pub async fn create_order_transaction<'a>(db: &SurrealRepo, content: OrderModels::OrderDTO, user: &AuthModels::AuthUser) -> Result<JsonStatus<&'a str>, Status> {
+    let order: (Order, Vec<ProductDTO>)= OrderModels::Order::new(content);
     let order_data = serde_json::json!(order[0]).to_string();
     let product_data = serde_json::json!(order[1]).to_string();
+
+    let ds: Surreal<Client> = db.get_db();
+
+    let rand_id = sql::Id::rand();
+    let order_id = format!("orders:{rand_id}");
+
     //Transaction to catch failed product or order insertion
     //TODO: Work out how to deal with invoice creation mid transaction
     //TODO: Find way to get ID while inside transaction (Alt: Generate ID before creation)
     println!("{:?}", product_data);
-    let query_statement = surrealdb::Surreal<Client>.query(BeginStatement)
-    .query("CREATE orders CONTENT $order")
+    let query = ds.query(BeginStatement)
+    .query(format!("CREATE {order_id} CONTENT $order"))
     .query("INSERT INTO products [$products]")
     .query("RELATE $user_id->created->$order_id SET time.created = time::now()")
     .query(CommitStatement)
     .bind(("order", order_data))
     .bind(("products", product_data))
-
-    let query = db.execute(query_statement).await?;
+    .bind(("order_id", order_id))
+    .bind(("user_id", user.user)).await?;
 
     return match query {
         Ok(query) => {
@@ -108,7 +116,7 @@ pub async fn create_order<'a>(
     user: &AuthModels::AuthUser,
 ) -> Result<JsonStatus<&'a str>, Status> {
     let order = OrderModels::Order::new(content);
-    let query = db.create("orders", order, None).await;
+    let query = db.create("orders", order).await;
     return match query {
         Ok(query) => {
             let result_entry = query[0].output().expect("Error in creating entry");

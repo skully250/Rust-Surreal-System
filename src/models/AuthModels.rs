@@ -1,14 +1,13 @@
 use std::env;
 
-use crate::repository::SurrealRepo::SurrealRepo;
 use jsonwebtoken::{decode, DecodingKey, TokenData, Validation};
 use rocket::{
     http::Status,
     request::{self, FromRequest, Request},
-    State,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+
+use crate::repository::SurrealRepo;
 
 #[derive(Serialize)]
 pub struct LoginResponse {
@@ -49,10 +48,10 @@ fn grab_token<'a>(req: &Request) -> Result<TokenData<Claims>, &'a str> {
     return Ok(decoded);
 }
 
-async fn get_role<'a>(db: &SurrealRepo, token: &TokenData<Claims>) -> Result<String, &'a str> {
+async fn get_role<'a>(token: &TokenData<Claims>) -> Result<String, &'a str> {
     let where_statement = format!("username = '{0}'", token.claims.sub);
     let db_query: Result<Vec<String>, surrealdb::Error> =
-        db.find_where("users", "role", &where_statement).await;
+        SurrealRepo::find_where("users", "role", &where_statement).await;
 
     match db_query {
         Ok(query) => {
@@ -69,7 +68,7 @@ async fn get_role<'a>(db: &SurrealRepo, token: &TokenData<Claims>) -> Result<Str
                     return Err("Error fetching user");
                 }
             }
-        }, Err(err) => {
+        }, Err(_) => {
             Err("error running db query")
         }
     }
@@ -81,14 +80,10 @@ impl<'r> FromRequest<'r> for AuthUser {
 
     async fn from_request(req: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
         let token = grab_token(req);
-        let db = req
-            .guard::<&State<SurrealRepo>>()
-            .await
-            .expect("DB not found");
 
         match token {
             Ok(token) => {
-                let user_role = get_role(db, &token).await;
+                let user_role = get_role(&token).await;
                 match user_role {
                     Ok(user_role) => {
                         println!("{:?}", user_role);
@@ -121,14 +116,10 @@ impl<'r> FromRequest<'r> for AuthAdmin {
 
     async fn from_request(req: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
         let token = grab_token(req);
-        let db = req
-            .guard::<&State<SurrealRepo>>()
-            .await
-            .expect("DB not found");
 
         match token {
             Ok(token) => {
-                let user_role = get_role(db, &token).await;
+                let user_role = get_role(&token).await;
                 match user_role {
                     Ok(user_role) => {
                         if user_role != "Admin" {

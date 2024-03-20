@@ -20,20 +20,44 @@ where
     pub message: T,
 }
 
-impl JsonStatus<T> {
-    pub fn Created(item: &str) -> Self<&str> {
-        let message = format!("Successfully created {item}");
-        JsonStatus {
+impl JsonStatus<String> {
+    pub fn success(message: &str) -> Self {
+        return JsonStatus {
             status_code: Status::Ok,
             status: true,
-            message: message
-        }
+            message: message.to_string(),
+        };
+    }
+
+    pub fn failure(message: &str) -> Self {
+        return JsonStatus {
+            status_code: Status::InternalServerError,
+            status: false,
+            message: message.to_string(),
+        };
+    }
+
+    pub fn custom(code: Status, status: bool, message: &str) -> Self {
+        return JsonStatus {
+            status_code: code,
+            status: status,
+            message: message.to_string(),
+        };
+    }
+
+    pub fn created(item: &str) -> Self {
+        let message = format!("Successfully created {item}");
+        return JsonStatus {
+            status_code: Status::Ok,
+            status: true,
+            message: message,
+        };
     }
 }
 
 impl<'r, T> Responder<'r, 'static> for JsonStatus<T>
 where
-    T: Display + Serialize
+    T: Display + Serialize,
 {
     fn respond_to(self, _: &'r rocket::Request<'_>) -> response::Result<'static> {
         let mut build = Response::build();

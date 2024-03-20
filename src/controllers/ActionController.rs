@@ -2,9 +2,7 @@ use rocket::{http::Status, State};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    models::ProductModels::{ActionDTO, ActionList, DBAction},
-    util::responders::JsonStatus,
-    SurrealRepo,
+    models::ActionModels::{ActionList, DBAction}, util::responders::JsonStatus, SurrealRepo
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -13,45 +11,38 @@ pub struct ActionDetails {
     active: bool,
 }
 
-pub async fn get_actions(db: &SurrealRepo) -> Result<Vec<DBAction>, Status> {
-    let query: Result<Vec<DBAction>, surrealdb::Error> = db.find_all("actions").await;
+pub async fn get_actions() -> Result<Vec<DBAction>, Status> {
+    let query: Result<Vec<DBAction>, surrealdb::Error> = SurrealRepo::find_all("actions").await;
     return match query {
         Ok(query_result) => Ok(query_result),
         Err(_) => Err(Status::BadRequest),
     };
 }
 
-pub async fn create_action<'a>(
-    db: &SurrealRepo,
+pub async fn create_action(
     actions: &State<ActionList>,
     action_name: &str,
-) -> Result<JsonStatus<&'a str>, Status> {
-    let query = db
-        .create_named(
-            "actions",
-            &action_name,
-            ActionDetails {
-                name: action_name.to_owned(),
-                active: true,
-            },
-        )
-        .await;
+) -> Result<JsonStatus<String>, Status> {
+    let query = SurrealRepo::create_named(
+        "actions",
+        &action_name,
+        ActionDetails {
+            name: action_name.to_owned(),
+            active: true,
+        },
+    )
+    .await;
     return match query {
         Ok(_query_result) => {
             let mut actions = actions.actions.write().await;
             actions.push(action_name.to_string());
-            Ok(JsonStatus {
-                status_code: Status::Ok,
-                status: true,
-                message: "Successfully created test action",
-            })
+            Ok(JsonStatus::success("Successfully created action"))
         }
         Err(_) => Err(Status::BadRequest),
     };
 }
 
 pub async fn update_action<'a>(
-    db: &SurrealRepo,
     action_list: &State<ActionList>,
     action_name: String,
     active: bool,
@@ -61,7 +52,7 @@ pub async fn update_action<'a>(
         active: active,
     };
     let act_name = action_details.name.clone();
-    let query = db.update("actions", &act_name, action_details).await;
+    let query = SurrealRepo::update("actions", &act_name, action_details).await;
     return match query {
         Ok(_) => {
             let mut actions = action_list.actions.write().await;

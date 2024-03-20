@@ -9,19 +9,18 @@ extern crate rocket;
 extern crate dotenv;
 
 use dotenv::dotenv;
-use models::ProductModels::{ActionList, DBAction};
+use models::ActionModels::ActionList;
 use rocket::{
     http::{CookieJar, Status},
     serde::json::Json,
     tokio::sync::RwLock,
-    State,
 };
 
-use repository::SurrealRepo::{DBConfig, SurrealRepo};
+use repository::SurrealRepo::{self, DBConfig};
 use routes::data::ProductRoutes;
 use util::responders::JsonStatus;
 
-use crate::models::{AuthModels::AuthUser, UserModels::UserDTO};
+use crate::models::{ActionModels::DBAction, AuthModels::AuthUser, UserModels::UserDTO};
 
 //Come back to responders and find a better way to handle them
 #[catch(422)]
@@ -70,12 +69,11 @@ fn not_implemented() -> JsonStatus<&'static str> {
 }
 
 #[post("/login", format = "json", data = "<user>")]
-async fn login_user<'a>(
-    db: &State<SurrealRepo>,
+async fn login_user(
     user: Json<UserDTO>,
     cookies: &CookieJar<'_>,
-) -> Result<JsonStatus<&'a str>, Status> {
-    return controllers::UserController::login_user(db, cookies, user.into_inner()).await;
+) -> Result<JsonStatus<String>, Status> {
+    return controllers::UserController::login_user(cookies, user.into_inner()).await;
 }
 
 #[get("/")]
@@ -87,9 +85,8 @@ async fn logged_in<'a>(_user: AuthUser) -> JsonStatus<&'a str> {
     }
 }
 
-async fn get_actions(db: &SurrealRepo) -> ActionList {
-    let query: Vec<DBAction> = db
-        .find_all("actions")
+async fn get_actions() -> ActionList {
+    let query: Vec<DBAction> = SurrealRepo::find_all("actions")
         .await
         .expect("Unable to fetch actions from DB");
     println!("{:?}", query);
@@ -110,12 +107,11 @@ async fn rocket() -> _ {
         ns: "test",
         db: "test",
     };
-    let surreal = SurrealRepo::init(config).await;
+    SurrealRepo::connect(config).await;
     //Create a list of current actions upon the initialization of the application
     //That will be tracked and updated with
-    let actions = get_actions(&surreal).await;
+    let actions = get_actions().await;
     rocket::build()
-        .manage(surreal)
         .manage(actions)
         .mount("/api", routes![login_user, logged_in])
         //.mount("/api/orders", OrderRoutes::order_routes())

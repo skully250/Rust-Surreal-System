@@ -1,10 +1,10 @@
-use surrealdb::sql::Thing
+use std::fmt::Display;
 
-#[serde(untagged)]
-pub enum ActionEnum {
-    Unpopulated(Thing),
-    Populated(Action)
-}
+use rocket::tokio::sync::RwLock;
+use serde::{Deserialize, Serialize};
+use surrealdb::sql::{Datetime, Thing};
+
+use crate::repository::SurrealRepo;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DBAction {
@@ -34,7 +34,7 @@ pub struct ActionDTO {
  pub struct Actioned {
      pub from: Thing,
      pub to: Thing,
-     pub action: ActionEnum
+     pub action: SurrealRepo::PopulatedValue<Action>
  }
 
 pub struct ActionList {

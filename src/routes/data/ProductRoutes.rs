@@ -1,8 +1,7 @@
 use crate::{
-    controllers::{self},
-    models::ProductModels::{self, ActionList, DBAction},
+    controllers,
+    models::{ActionModels::{ActionList, DBAction}, ProductModels},
     util::responders::JsonStatus,
-    SurrealRepo,
 };
 use rocket::{http::Status, serde::json::Json, Route, State};
 
@@ -31,10 +30,9 @@ pub fn product_routes() -> Vec<Route> {
 
 #[get("/models?<fetch_all>")]
 async fn get_models(
-    db: &State<SurrealRepo>,
     fetch_all: Option<bool>,
 ) -> Result<Json<Vec<ProductModels::DBModel>>, Status> {
-    let query = controllers::ModelController::get_models(db, fetch_all).await;
+    let query = controllers::ModelController::get_models(fetch_all).await;
     return match query {
         Ok(query) => Ok(Json(query)),
         Err(err) => Err(err),
@@ -43,46 +41,42 @@ async fn get_models(
 
 #[post("/models", format = "json", data = "<model>")]
 async fn add_model<'a>(
-    db: &State<SurrealRepo>,
     model: Json<ProductModels::ModelDTO>,
-) -> Result<JsonStatus<&'a str>, Status> {
-    return controllers::ModelController::add_model(db, model.into_inner()).await;
+) -> Result<JsonStatus<String>, Status> {
+    return controllers::ModelController::add_model(model.into_inner()).await;
 }
 
 #[put("/models/<model_id>", format = "json", data = "<model>")]
 async fn edit_model(
-    db: &State<SurrealRepo>,
     model: Json<ProductModels::ModelDTO>,
     model_id: String,
-) -> Result<JsonStatus<&str>, Status> {
+) -> Result<JsonStatus<String>, Status> {
     //This may change in future depending on how frontend handles ID's
     let db_name = format!("models:{model_id}");
-    return controllers::ModelController::edit_model(db, model.into_inner(), db_name).await;
+    return controllers::ModelController::edit_model(model.into_inner(), db_name).await;
 }
 
 #[post("/models/<model_id>")]
 async fn restore_model(
-    db: &State<SurrealRepo>,
     model_id: String,
-) -> Result<JsonStatus<&str>, Status> {
+) -> Result<JsonStatus<String>, Status> {
     let db_name = format!("models:{model_id}");
-    return controllers::ModelController::restore_model(db, db_name).await;
+    return controllers::ModelController::restore_model(db_name).await;
 }
 
 #[delete("/models/<model_id>")]
 async fn delete_model(
-    db: &State<SurrealRepo>,
     model_id: String,
-) -> Result<JsonStatus<&str>, Status> {
+) -> Result<JsonStatus<String>, Status> {
     let db_name = format!("models:{model_id}");
-    return controllers::ModelController::delete_model(db, db_name).await;
+    return controllers::ModelController::delete_model(db_name).await;
 }
 
 //Actions
 
 #[get("/actions/db")]
-async fn get_db_actions(db: &State<SurrealRepo>) -> Result<Json<Vec<DBAction>>, Status> {
-    let query = controllers::ActionController::get_actions(db).await;
+async fn get_db_actions() -> Result<Json<Vec<DBAction>>, Status> {
+    let query = controllers::ActionController::get_actions().await;
     match query {
         Ok(query) => {
             Ok(Json(query))
@@ -100,28 +94,25 @@ async fn get_actions(action_list: &State<ActionList>) -> Json<Vec<String>> {
 }
 
 #[post("/actions/<action_name>")]
-async fn create_action<'a>(
-    db: &State<SurrealRepo>,
+async fn create_action(
     action: &State<ActionList>,
     action_name: &str,
-) -> Result<JsonStatus<&'a str>, Status> {
-    return controllers::ActionController::create_action(db, action, action_name).await;
+) -> Result<JsonStatus<String>, Status> {
+    return controllers::ActionController::create_action(action, action_name).await;
 }
 
 #[put("/actions/<action_name>")]
 async fn update_action<'a>(
-    db: &State<SurrealRepo>,
     action_list: &State<ActionList>,
     action_name: String,
 ) -> Result<JsonStatus<&'a str>, Status> {
-    return controllers::ActionController::update_action(db, action_list, action_name, true).await;
+    return controllers::ActionController::update_action(action_list, action_name, true).await;
 }
 
 #[delete("/actions/<action_name>")]
 async fn delete_action<'a>(
-    db: &State<SurrealRepo>,
     action_list: &State<ActionList>,
     action_name: String,
 ) -> Result<JsonStatus<&'a str>, Status> {
-    return controllers::ActionController::update_action(db, action_list, action_name, false).await;
+    return controllers::ActionController::update_action(action_list, action_name, false).await;
 }

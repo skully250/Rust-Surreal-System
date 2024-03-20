@@ -1,9 +1,8 @@
-use std::{collections::HashMap, fmt::Display};
-
-use rocket::tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::{Datetime, Thing};
-use rocket::serde::json::Json;
+use serde_json::Value;
+use surrealdb::sql::Thing;
+
+use super::ActionModels::Action;
 
 //Using strings to include measurements and symbols ie
 //32x32m || 32cm x 10m || 32x10x30 || 32kg || 320g
@@ -45,14 +44,14 @@ pub struct DBProduct {
     orderNo: u32,
     model: DBModel,
     //TODO: Update this to conform with new graph edges
-    actions: Option<ProductQuantity>
+    actions: Option<ProductQuantity>,
     //JSON Data that can be read by a customized frontend for product differences
-    customizations: Option<Json>
+    customizations: Option<Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProductDTO {
     orderNo: u32,
     model: String,
-    customizations: Option<Json>
+    customizations: Option<Value>,
 }

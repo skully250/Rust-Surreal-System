@@ -6,7 +6,19 @@ use surrealdb::{
     Response, Surreal,
 };
 
-pub static DB: Surreal<Client> = Surreal::init();
+//Trait for use as implementation on data types that interact with the DB
+#[rocket::async_trait]
+pub trait DBInteractions<T>
+where
+    T: for<'a> Deserialize<'a>,
+{
+    async fn find(db: &SurrealRepo) -> Result<T, surrealdb::Error>;
+    async fn find_where(db: &SurrealRepo) -> Result<Vec<T>, surrealdb::Error>;
+    async fn find_all(db: &SurrealRepo) -> Result<Vec<T>, surrealdb::Error>;
+
+    async fn create(db: &SurrealRepo) -> Result<bool, surrealdb::Error>;
+    async fn update(db: &SurrealRepo) -> Result<bool, surrealdb::Error>;
+}
 
 pub struct DBConfig<'a> {
     pub path: &'a str,
@@ -14,10 +26,8 @@ pub struct DBConfig<'a> {
     pub db: &'a str,
 }
 
-pub async fn connect(config: DBConfig<'_>) -> ApiResult<()> {
-    DB.connect(config.path).await?;
-    DB.use_ns(config.ns).use_db(config.db).await.unwrap();
-    return Ok(());
+pub struct SurrealRepo {
+    ds: Surreal<Client>,
 }
 
 //Look into potentialy using generics in future
@@ -30,10 +40,11 @@ impl SurrealRepo {
         return SurrealRepo { ds };
     }
 
-    //Potentially dangerous
-    //Alt: Some other way to do pre-made queries and bind outside of sharing the Datastore
-    pub fn get_db() -> Surreal<Client> {
-        return Self.ds;
+    //Execute pre-constructed SurrealQL statements from elsewhere in the program
+    //Potentially dangerous?
+    pub async fn execute(sql_statement) {
+        let query = self.ds.execute(sql_statmement).await?
+        return Ok(query.unwrap());
     }
 
     fn get_json<T>(content: T) -> serde_json::Value
@@ -109,11 +120,11 @@ impl SurrealRepo {
         return Ok(response.unwrap());
     }
 
-    pub async fn create<T>(&self, collection: &str, content: T) -> Result<Vec<T>, surrealdb::Error>
+    pub async fn create<T>(&self, name: &str, content: T) -> Result<Vec<T>, surrealdb::Error>
     where
         T: Serialize + DeserializeOwned + Debug,
     {
-        let response: Vec<T> = self.ds.create(collection).content(content).await?;
+        let response: Vec<T> = self.ds.create(name).content(content).await?;
         return Ok(response);
     }
 

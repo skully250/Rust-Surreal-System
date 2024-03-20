@@ -1,6 +1,6 @@
 use crate::{
     controllers::{self},
-    models::ActionModels::{self, ActionList, DBAction},
+    models::ProductModels::{self, ActionList, DBAction},
     util::responders::JsonStatus,
     SurrealRepo,
 };

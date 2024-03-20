@@ -8,6 +8,7 @@ use rocket::{
     State,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Serialize)]
 pub struct LoginResponse {

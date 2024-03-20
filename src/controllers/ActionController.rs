@@ -2,7 +2,7 @@ use rocket::{http::Status, State};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    models::ActionModels::{ActionDTO, ActionList, DBAction},
+    models::ProductModels::{ActionDTO, ActionList, DBAction},
     util::responders::JsonStatus,
     SurrealRepo,
 };

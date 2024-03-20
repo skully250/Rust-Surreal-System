@@ -1,6 +1,3 @@
-#![allow(incomplete_features)]
-#![feature(generic_const_exprs)]
-
 mod controllers;
 mod models;
 mod repository;
@@ -12,7 +9,7 @@ extern crate rocket;
 extern crate dotenv;
 
 use dotenv::dotenv;
-use models::ActionModels::{ActionList, DBAction};
+use models::ProductModels::{ActionList, DBAction};
 use rocket::{
     http::{CookieJar, Status},
     serde::json::Json,

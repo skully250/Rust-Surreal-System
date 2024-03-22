@@ -22,17 +22,12 @@ async fn get_users() -> Result<Json<Vec<DBUser>>, Status> {
 }
 
 #[post("/", format = "json", data = "<user>")]
-async fn add_users(
-    user: Json<UserDTO>,
-) -> Result<JsonStatus<String>, Status> {
+async fn add_users(user: Json<UserDTO>) -> Result<JsonStatus<String>, Status> {
     return controllers::UserController::add_user(user.into_inner()).await;
 }
 
 #[put("/<user_id>", format = "json", data = "<user>")]
-async fn edit_user(
-    user: Json<UserDTO>,
-    user_id: String,
-) -> Result<JsonStatus<String>, Status> {
+async fn edit_user(user: Json<UserDTO>, user_id: String) -> Result<JsonStatus<String>, Status> {
     let db_name = format!("users:{user_id}");
     return controllers::UserController::edit_user(user.into_inner(), db_name).await;
 }

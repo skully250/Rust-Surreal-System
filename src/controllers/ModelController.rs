@@ -4,8 +4,8 @@ use crate::{models::ProductModels, repository::SurrealRepo, util::responders::Js
 
 pub async fn get_models(
     fetch_all: Option<bool>,
-) -> Result<Vec<ProductModels::DBModel>, Status> {
-    let query: Result<Vec<ProductModels::DBModel>, surrealdb::Error>;
+) -> Result<Vec<ProductModels::ProductModel>, Status> {
+    let query: Result<Vec<ProductModels::ProductModel>, surrealdb::Error>;
     if fetch_all.is_some() {
         query = SurrealRepo::find_all("models").await;
     } else {
@@ -22,7 +22,7 @@ pub async fn get_models(
 }
 
 pub async fn add_model<'a>(
-    content: ProductModels::ModelDTO,
+    content: ProductModels::ProductModel,
 ) -> Result<JsonStatus<String>, Status> {
     //Take ownership of DTO Name as it is required for creation of the model in the DB
     let name = content.name.to_owned();
@@ -34,7 +34,7 @@ pub async fn add_model<'a>(
 }
 
 pub async fn edit_model(
-    content: ProductModels::ModelDTO,
+    content: ProductModels::ProductModel,
     product_id: String,
 ) -> Result<JsonStatus<String>, Status> {
     let query = SurrealRepo::update("models", &product_id, content).await;

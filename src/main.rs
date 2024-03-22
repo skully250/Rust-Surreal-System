@@ -17,10 +17,10 @@ use rocket::{
 };
 
 use repository::SurrealRepo::{self, DBConfig};
-use routes::data::ProductRoutes;
+use routes::data::{ActionRoutes, ProductRoutes};
 use util::responders::JsonStatus;
 
-use crate::models::{ActionModels::DBAction, AuthModels::AuthUser, UserModels::UserDTO};
+use crate::models::{ActionModels::Action, AuthModels::AuthUser, UserModels::UserDTO};
 
 //Come back to responders and find a better way to handle them
 #[catch(422)]
@@ -86,7 +86,7 @@ async fn logged_in<'a>(_user: AuthUser) -> JsonStatus<&'a str> {
 }
 
 async fn get_actions() -> ActionList {
-    let query: Vec<DBAction> = SurrealRepo::find_all("actions")
+    let query: Vec<Action> = SurrealRepo::find_all("actions")
         .await
         .expect("Unable to fetch actions from DB");
     println!("{:?}", query);
@@ -115,6 +115,7 @@ async fn rocket() -> _ {
         .manage(actions)
         .mount("/api", routes![login_user, logged_in])
         //.mount("/api/orders", OrderRoutes::order_routes())
+        .mount("/api/actions", ActionRoutes::action_routes())
         .mount("/api/products", ProductRoutes::product_routes())
         //.mount("/api/customers", CustomerRoutes::customer_routes())
         //.mount("/api/users", UserRoutes::user_routes())

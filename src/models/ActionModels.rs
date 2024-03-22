@@ -7,14 +7,25 @@ use surrealdb::sql::{Datetime, Thing};
 use crate::repository::SurrealRepo;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct DBAction {
-    pub id: Thing,
+pub struct Action {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<Thing>,
     pub name: String,
     pub active: bool,
 }
 
+impl Action {
+    pub fn new(name: String, active: bool) -> Self {
+        return Action {
+            id: None,
+            name: name,
+            active: active
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Action {
+pub struct ActionDetails {
     pub finished_by: u16,
     pub time: Datetime,
 }
@@ -34,7 +45,7 @@ pub struct ActionDTO {
  pub struct Actioned {
      pub from: Thing,
      pub to: Thing,
-     pub action: SurrealRepo::PopulatedValue<Action>
+     pub action: SurrealRepo::PopulatedValue<ActionDetails>
  }
 
 pub struct ActionList {

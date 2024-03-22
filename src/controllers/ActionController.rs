@@ -1,18 +1,11 @@
 use rocket::{http::Status, State};
-use serde::{Deserialize, Serialize};
 
 use crate::{
-    models::ActionModels::{ActionList, DBAction}, util::responders::JsonStatus, SurrealRepo
+    models::ActionModels::{Action, ActionList}, util::responders::JsonStatus, SurrealRepo
 };
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ActionDetails {
-    name: String,
-    active: bool,
-}
-
-pub async fn get_actions() -> Result<Vec<DBAction>, Status> {
-    let query: Result<Vec<DBAction>, surrealdb::Error> = SurrealRepo::find_all("actions").await;
+pub async fn get_actions() -> Result<Vec<Action>, Status> {
+    let query: Result<Vec<Action>, surrealdb::Error> = SurrealRepo::find_all("actions").await;
     return match query {
         Ok(query_result) => Ok(query_result),
         Err(_) => Err(Status::BadRequest),
@@ -26,12 +19,10 @@ pub async fn create_action(
     let query = SurrealRepo::create_named(
         "actions",
         &action_name,
-        ActionDetails {
-            name: action_name.to_owned(),
-            active: true,
-        },
+        Action::new(action_name.to_owned(), true),
     )
     .await;
+    println!("${:?}", query);
     return match query {
         Ok(_query_result) => {
             let mut actions = actions.actions.write().await;
@@ -44,13 +35,10 @@ pub async fn create_action(
 
 pub async fn update_action<'a>(
     action_list: &State<ActionList>,
-    action_name: String,
+    action_name: &str,
     active: bool,
-) -> Result<JsonStatus<&'a str>, Status> {
-    let action_details = ActionDetails {
-        name: action_name,
-        active: active,
-    };
+) -> Result<JsonStatus<String>, Status> {
+    let action_details = Action::new(action_name.to_string(), active);
     let act_name = action_details.name.clone();
     let query = SurrealRepo::update("actions", &act_name, action_details).await;
     return match query {
@@ -62,34 +50,18 @@ pub async fn update_action<'a>(
             match active {
                 true => {
                     if index.is_some() {
-                        return Ok(JsonStatus {
-                            status_code: Status::NotModified,
-                            status: true,
-                            message: "Action already active",
-                        });
+                        return Ok(JsonStatus::custom(Status::BadRequest, false, "Action already Active"));
                     } else {
                         actions.push(act_name);
-                        return Ok(JsonStatus {
-                            status_code: Status::Ok,
-                            status: true,
-                            message: "Successfully activated action",
-                        });
+                        return Ok(JsonStatus::success("Successfully activated action"));
                     }
                 }
                 false => {
                     if index.is_some() {
                         actions.remove(index.unwrap());
-                        return Ok(JsonStatus {
-                            status_code: Status::Ok,
-                            status: true,
-                            message: "Action archived",
-                        });
+                        return Ok(JsonStatus::success("Action Archived"));
                     } else {
-                        return Ok(JsonStatus {
-                            status_code: Status::NotFound,
-                            status: false,
-                            message: "Action doesnt exist",
-                        });
+                        return Ok(JsonStatus::custom(Status::NotFound, false, "Action Doesnt exist"));
                     }
                 }
             }
@@ -97,3 +69,5 @@ pub async fn update_action<'a>(
         Err(_) => Err(Status::BadRequest),
     };
 }
+
+//Action events and graph edges down here.

@@ -6,11 +6,10 @@ pub async fn get_models(
     fetch_all: Option<bool>,
 ) -> Result<Vec<ProductModels::ProductModel>, Status> {
     let query: Result<Vec<ProductModels::ProductModel>, surrealdb::Error>;
-    if fetch_all.is_some() {
+    if fetch_all.is_some_and(|fetch| fetch == true) {
         query = SurrealRepo::find_all("models").await;
     } else {
-        let query_string = format!("active != false");
-        query = SurrealRepo::find_all_where("models", &query_string).await;
+        query = SurrealRepo::find_all_where("models", "active=true").await;
     }
     return match query {
         Ok(query) => {
@@ -35,7 +34,7 @@ pub async fn add_model<'a>(
 
 pub async fn edit_model(
     content: ProductModels::ProductModel,
-    product_id: String,
+    product_id: &str,
 ) -> Result<JsonStatus<String>, Status> {
     let query = SurrealRepo::update("models", &product_id, content).await;
     return match query {
@@ -61,6 +60,7 @@ pub async fn delete_model(
 ) -> Result<JsonStatus<String>, Status> {
     let query_string = format!("UPDATE {0} SET active = false", product_id);
     let query = SurrealRepo::query(&query_string).await;
+    println!("{:?}", query);
     return match query {
         Ok(_) => Ok(JsonStatus::success("Successfully removed model")),
         Err(_) => Err(Status::InternalServerError),

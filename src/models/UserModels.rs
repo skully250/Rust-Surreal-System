@@ -1,5 +1,6 @@
 use argon2::Config;
 use serde::{Deserialize, Serialize};
+use surrealdb::sql::Thing;
 
 //Putting both customer and user in the same file since they both correlate to a person in the DB
 
@@ -35,18 +36,9 @@ struct Address {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct DBCustomer {
-    id: String,
-    name: String,
-    email: String,
-    address: Address,
-    mobile_number: Option<Phone>,
-    phone_number: Option<Phone>,
-}
-
-//Will be expanded upon later to include additional details
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CustomerDTO {
+pub struct Customer {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<Thing>,
     name: String,
     email: String,
     address: Address,
@@ -80,20 +72,13 @@ impl From<&UserRole> for String {
 
 //Will add more metadata to users later as expectations expand
 #[derive(Debug, Serialize, Deserialize)]
-pub struct DBUser {
-    id: String,
+pub struct User {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<Thing>,
     pub username: String,
     pub role: UserRole,
     salt: String,
     pub hash: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct User {
-    pub username: String,
-    role: UserRole,
-    salt: String,
-    hash: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -115,6 +100,7 @@ impl User {
             role = UserRole::from(user.role.unwrap().as_str());
         }
         User {
+            id: None,
             username: user.username,
             role: role,
             salt: String::from_utf8(salt.to_vec()).unwrap(),

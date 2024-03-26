@@ -4,13 +4,13 @@ use rocket::{
 };
 
 use crate::{
-    models::UserModels::{self, DBUser, User, UserDTO},
+    models::UserModels::{self, User, UserDTO},
     repository::SurrealRepo::{self},
     util::{responders::JsonStatus, AuthUtil},
 };
 
-pub async fn get_users() -> Result<Vec<DBUser>, Status> {
-    let query: Result<Vec<DBUser>, surrealdb::Error> = SurrealRepo::find_all("users").await;
+pub async fn get_users() -> Result<Vec<User>, Status> {
+    let query: Result<Vec<User>, surrealdb::Error> = SurrealRepo::find_all("users").await;
     return match query {
         Ok(query) => Ok(query),
         Err(_) => Err(Status::InternalServerError),
@@ -38,7 +38,7 @@ pub async fn edit_user(user: UserDTO, user_id: String) -> Result<JsonStatus<Stri
 }
 
 pub async fn delete_user(user_id: String) -> Result<JsonStatus<String>, Status> {
-    let query: Result<DBUser, surrealdb::Error> = SurrealRepo::delete("users", &user_id).await;
+    let query: Result<User, surrealdb::Error> = SurrealRepo::delete("users", &user_id).await;
     return match query {
         Ok(_) => Ok(JsonStatus::success("Successfully removed user")),
         Err(_) => Err(Status::InternalServerError),
@@ -51,7 +51,7 @@ pub async fn login_user(
     cookies: &CookieJar<'_>,
     user: UserDTO,
 ) -> Result<JsonStatus<String>, Status> {
-    let db_query: Result<DBUser, surrealdb::Error> =
+    let db_query: Result<User, surrealdb::Error> =
         SurrealRepo::find("users", &user.username).await;
     //println!("{:?}", &found_user.into());
     match db_query {

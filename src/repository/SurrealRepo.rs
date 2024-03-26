@@ -36,10 +36,10 @@ pub async fn find_all_where<T: DeserializeOwned>(
     collection: &str,
     find_statement: &str,
 ) -> Result<Vec<T>, surrealdb::Error> {
+    let query_string = format!("SELECT * FROM type::table($collection) WHERE {find_statement}");
     let mut query = DB
-        .query("SELECT * FROM type::table($collection) WHERE $find")
+        .query(query_string)
         .bind(("collection", collection))
-        .bind(("find", find_statement))
         .await
         .expect("Something went wrong");
 

@@ -1,9 +1,7 @@
 use rocket::{http::Status, serde::json::Json, Route};
 
 use crate::{
-    controllers,
-    models::UserModels::{DBUser, UserDTO},
-    util::responders::JsonStatus,
+    controllers, models::UserModels::{User, UserDTO}, util::responders::JsonStatus
 };
 
 pub fn user_routes() -> Vec<Route> {
@@ -13,7 +11,7 @@ pub fn user_routes() -> Vec<Route> {
 
 //TODO: Guarded routes to protect against data leaking
 #[get("/")]
-async fn get_users() -> Result<Json<Vec<DBUser>>, Status> {
+async fn get_users() -> Result<Json<Vec<User>>, Status> {
     let users = controllers::UserController::get_users().await;
     return match users {
         Ok(users) => Ok(Json(users)),
@@ -28,8 +26,8 @@ async fn add_users(user: Json<UserDTO>) -> Result<JsonStatus<String>, Status> {
 
 #[put("/<user_id>", format = "json", data = "<user>")]
 async fn edit_user(user: Json<UserDTO>, user_id: String) -> Result<JsonStatus<String>, Status> {
-    let db_name = format!("users:{user_id}");
-    return controllers::UserController::edit_user(user.into_inner(), db_name).await;
+    //let db_name = format!("users:{user_id}");
+    return controllers::UserController::edit_user(user.into_inner(), user_id).await;
 }
 
 #[delete("/<user_id>")]

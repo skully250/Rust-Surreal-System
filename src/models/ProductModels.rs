@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use rocket::http::Status;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use surrealdb::sql::Thing;

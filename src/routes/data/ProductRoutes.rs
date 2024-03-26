@@ -36,21 +36,21 @@ async fn add_model<'a>(model: Json<ProductModels::ProductModel>) -> Result<JsonS
 #[put("/models/<model_id>", format = "json", data = "<model>")]
 async fn edit_model(
     model: Json<ProductModels::ProductModel>,
-    model_id: String,
+    model_id: &str,
 ) -> Result<JsonStatus<String>, Status> {
     //This may change in future depending on how frontend handles ID's
-    let db_name = format!("models:{model_id}");
-    return controllers::ModelController::edit_model(model.into_inner(), db_name).await;
+    //let db_name = format!("models:{model_id}");
+    return controllers::ModelController::edit_model(model.into_inner(), model_id).await;
 }
 
 #[post("/models/<model_id>")]
-async fn restore_model(model_id: String) -> Result<JsonStatus<String>, Status> {
+async fn restore_model(model_id: &str) -> Result<JsonStatus<String>, Status> {
     let db_name = format!("models:{model_id}");
     return controllers::ModelController::restore_model(db_name).await;
 }
 
 #[delete("/models/<model_id>")]
-async fn delete_model(model_id: String) -> Result<JsonStatus<String>, Status> {
+async fn delete_model(model_id: &str) -> Result<JsonStatus<String>, Status> {
     let db_name = format!("models:{model_id}");
     return controllers::ModelController::delete_model(db_name).await;
 }

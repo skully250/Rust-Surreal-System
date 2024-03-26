@@ -9,7 +9,7 @@ extern crate rocket;
 extern crate dotenv;
 
 use dotenv::dotenv;
-use models::ActionModels::ActionList;
+use models::{ActionModels::ActionList, UserModels::{User, UserDTO}};
 use rocket::{
     http::{CookieJar, Status},
     serde::json::Json,
@@ -17,10 +17,10 @@ use rocket::{
 };
 
 use repository::SurrealRepo::{self, DBConfig};
-use routes::data::{ActionRoutes, ProductRoutes};
+use routes::data::{ActionRoutes, ProductRoutes, UserRoutes};
 use util::responders::JsonStatus;
 
-use crate::models::{ActionModels::Action, AuthModels::AuthUser, UserModels::UserDTO};
+use crate::models::{ActionModels::Action, AuthModels::AuthUser};
 
 //Come back to responders and find a better way to handle them
 #[catch(422)]
@@ -118,7 +118,7 @@ async fn rocket() -> _ {
         .mount("/api/actions", ActionRoutes::action_routes())
         .mount("/api/products", ProductRoutes::product_routes())
         //.mount("/api/customers", CustomerRoutes::customer_routes())
-        //.mount("/api/users", UserRoutes::user_routes())
+        .mount("/api/users", UserRoutes::user_routes())
         .register(
             "/api",
             catchers![

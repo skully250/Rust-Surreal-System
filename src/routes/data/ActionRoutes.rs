@@ -1,11 +1,11 @@
 //Actions
 
-use rocket::{http::Status, serde::json::Json, Route, State};
+use rocket::{serde::json::Json, Route, State};
 
 use crate::{
     controllers,
-    models::ActionModels::{ActionList, Action},
-    util::responders::JsonStatus,
+    models::ActionModels::{Action, ActionList},
+    util::responders::{ApiResult, Jsonstr},
 };
 
 pub fn action_routes() -> Vec<Route> {
@@ -20,7 +20,7 @@ pub fn action_routes() -> Vec<Route> {
 }
 
 #[get("/db")]
-async fn get_db_actions() -> Result<Json<Vec<Action>>, Status> {
+async fn get_db_actions() -> ApiResult<Json<Vec<Action>>> {
     let query = controllers::ActionController::get_actions().await;
     match query {
         Ok(query) => Ok(Json(query)),
@@ -35,25 +35,25 @@ async fn get_actions(action_list: &State<ActionList>) -> Json<Vec<String>> {
 }
 
 #[post("/<action_name>")]
-async fn create_action(
+async fn create_action<'a>(
     action: &State<ActionList>,
     action_name: &str,
-) -> Result<JsonStatus<String>, Status> {
+) -> Jsonstr<'a> {
     return controllers::ActionController::create_action(action, action_name).await;
 }
 
 #[put("/<action_name>")]
-async fn activate_action(
+async fn activate_action<'a>(
     action_list: &State<ActionList>,
     action_name: &str,
-) -> Result<JsonStatus<String>, Status> {
+) -> Jsonstr<'a> {
     return controllers::ActionController::update_action(action_list, action_name, true).await;
 }
 
 #[delete("/<action_name>")]
-async fn deactivate_action(
+async fn deactivate_action<'a>(
     action_list: &State<ActionList>,
     action_name: &str,
-) -> Result<JsonStatus<String>, Status> {
+) -> Jsonstr<'a> {
     return controllers::ActionController::update_action(action_list, action_name, false).await;
 }

@@ -1,5 +1,5 @@
-use crate::{controllers, models::ProductModels, util::responders::JsonStatus};
-use rocket::{http::Status, serde::json::Json, Route};
+use crate::{controllers, models::ProductModels, util::responders::{ApiResult, Jsonstr}};
+use rocket::{serde::json::Json, Route};
 
 /*
  * Products will always be created by the order
@@ -20,7 +20,7 @@ pub fn product_routes() -> Vec<Route> {
 //Models
 
 #[get("/models?<fetch_all>")]
-async fn get_models(fetch_all: Option<bool>) -> Result<Json<Vec<ProductModels::ProductModel>>, Status> {
+async fn get_models(fetch_all: Option<bool>) -> ApiResult<Json<Vec<ProductModels::ProductModel>>> {
     let query = controllers::ModelController::get_models(fetch_all).await;
     return match query {
         Ok(query) => Ok(Json(query)),
@@ -29,7 +29,7 @@ async fn get_models(fetch_all: Option<bool>) -> Result<Json<Vec<ProductModels::P
 }
 
 #[post("/models", format = "json", data = "<model>")]
-async fn add_model<'a>(model: Json<ProductModels::ProductModel>) -> Result<JsonStatus<String>, Status> {
+async fn add_model<'a>(model: Json<ProductModels::ProductModel>) -> Jsonstr<'a> {
     return controllers::ModelController::add_model(model.into_inner()).await;
 }
 
@@ -37,20 +37,18 @@ async fn add_model<'a>(model: Json<ProductModels::ProductModel>) -> Result<JsonS
 async fn edit_model(
     model: Json<ProductModels::ProductModel>,
     model_id: &str,
-) -> Result<JsonStatus<String>, Status> {
+) -> Jsonstr {
     //This may change in future depending on how frontend handles ID's
     //let db_name = format!("models:{model_id}");
     return controllers::ModelController::edit_model(model.into_inner(), model_id).await;
 }
 
 #[post("/models/<model_id>")]
-async fn restore_model(model_id: &str) -> Result<JsonStatus<String>, Status> {
-    let db_name = format!("models:{model_id}");
-    return controllers::ModelController::restore_model(db_name).await;
+async fn restore_model(model_id: &str) -> Jsonstr {
+    return controllers::ModelController::restore_model(model_id).await;
 }
 
 #[delete("/models/<model_id>")]
-async fn delete_model(model_id: &str) -> Result<JsonStatus<String>, Status> {
-    let db_name = format!("models:{model_id}");
-    return controllers::ModelController::delete_model(db_name).await;
+async fn delete_model(model_id: &str) -> Jsonstr {
+    return controllers::ModelController::delete_model(model_id).await;
 }

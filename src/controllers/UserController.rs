@@ -5,11 +5,11 @@ use rocket::{
 
 use crate::{
     models::UserModels::{self, User, UserDTO},
-    repository::SurrealRepo::{self},
-    util::{responders::JsonStatus, AuthUtil},
+    repository::SurrealRepo,
+    util::{responders::{ApiResult, JsonStatus, Jsonstr}, AuthUtil},
 };
 
-pub async fn get_users() -> Result<Vec<User>, Status> {
+pub async fn get_users() -> ApiResult<Vec<User>> {
     let query: Result<Vec<User>, surrealdb::Error> = SurrealRepo::find_all("users").await;
     return match query {
         Ok(query) => Ok(query),
@@ -17,7 +17,7 @@ pub async fn get_users() -> Result<Vec<User>, Status> {
     };
 }
 
-pub async fn add_user(user: UserDTO) -> Result<JsonStatus<String>, Status> {
+pub async fn add_user<'a>(user: UserDTO) -> Jsonstr<'a> {
     let new_user = UserModels::User::new(user);
     let username = new_user.username.to_owned();
     let query: Result<User, surrealdb::Error> =
@@ -28,7 +28,7 @@ pub async fn add_user(user: UserDTO) -> Result<JsonStatus<String>, Status> {
     };
 }
 
-pub async fn edit_user(user: UserDTO, user_id: String) -> Result<JsonStatus<String>, Status> {
+pub async fn edit_user(user: UserDTO, user_id: &str) -> Jsonstr {
     let new_user = UserModels::User::new(user);
     let query = SurrealRepo::update("users", &user_id, new_user).await;
     return match query {
@@ -37,7 +37,8 @@ pub async fn edit_user(user: UserDTO, user_id: String) -> Result<JsonStatus<Stri
     };
 }
 
-pub async fn delete_user(user_id: String) -> Result<JsonStatus<String>, Status> {
+pub async fn delete_user(user_id: &str) -> Jsonstr {
+    //Potential: Set to inactive, or delete all information but retain name for graph edge purposes
     let query: Result<User, surrealdb::Error> = SurrealRepo::delete("users", &user_id).await;
     return match query {
         Ok(_) => Ok(JsonStatus::success("Successfully removed user")),
@@ -47,10 +48,10 @@ pub async fn delete_user(user_id: String) -> Result<JsonStatus<String>, Status> 
 
 //Login Functions
 
-pub async fn login_user(
+pub async fn login_user<'a>(
     cookies: &CookieJar<'_>,
     user: UserDTO,
-) -> Result<JsonStatus<String>, Status> {
+) -> Jsonstr<'a> {
     let db_query: Result<User, surrealdb::Error> =
         SurrealRepo::find("users", &user.username).await;
     //println!("{:?}", &found_user.into());

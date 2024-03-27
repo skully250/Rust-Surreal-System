@@ -1,10 +1,11 @@
 use std::str::FromStr;
 
+use rocket::http::Status;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use surrealdb::sql::Thing;
 
-use crate::repository::SurrealRepo::PopulatedValue;
+use crate::repository::SurrealRepo::{PopulatedValue, DB};
 
 use super::ActionModels::Action;
 
@@ -29,6 +30,20 @@ impl ProductModel {
             weight: weight,
             size: size
         }
+    }
+
+    pub async fn find_active() -> Vec<Self> {
+        let mut query = DB.query("SELECT * FROM type::table(models) WHERE active = true").await.unwrap();
+        return query.take(0).expect("No models found");
+    }
+
+    pub async fn set_active(product_id: &str, active: bool) -> Result<&str, Status> {
+        let query_string = format!("UPDATE models:{0} SET active = {1}", product_id, active);
+        let query = DB.query(query_string).await;
+        return match query {
+            Ok(_) => Ok("Successfully modified model"),
+            Err(_) => Err(Status::InternalServerError),
+        };
     }
 }
 

@@ -9,7 +9,7 @@ extern crate rocket;
 extern crate dotenv;
 
 use dotenv::dotenv;
-use models::{ActionModels::ActionList, UserModels::{User, UserDTO}};
+use models::{ActionModels::ActionList, UserModels::UserDTO};
 use rocket::{
     http::{CookieJar, Status},
     serde::json::Json,
@@ -18,7 +18,7 @@ use rocket::{
 
 use repository::SurrealRepo::{self, DBConfig};
 use routes::data::{ActionRoutes, ProductRoutes, UserRoutes};
-use util::responders::JsonStatus;
+use util::responders::{JsonStatus, Jsonstr};
 
 use crate::models::{ActionModels::Action, AuthModels::AuthUser};
 
@@ -69,10 +69,10 @@ fn not_implemented() -> JsonStatus<&'static str> {
 }
 
 #[post("/login", format = "json", data = "<user>")]
-async fn login_user(
+async fn login_user<'a>(
     user: Json<UserDTO>,
     cookies: &CookieJar<'_>,
-) -> Result<JsonStatus<String>, Status> {
+) -> Jsonstr<'a> {
     return controllers::UserController::login_user(cookies, user.into_inner()).await;
 }
 

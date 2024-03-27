@@ -1,7 +1,7 @@
-use rocket::{http::Status, serde::json::Json, Route};
+use rocket::{serde::json::Json, Route};
 
 use crate::{
-    controllers, models::UserModels::{User, UserDTO}, util::responders::JsonStatus
+    controllers, models::UserModels::{User, UserDTO}, util::responders::{ApiResult, Jsonstr}
 };
 
 pub fn user_routes() -> Vec<Route> {
@@ -11,7 +11,7 @@ pub fn user_routes() -> Vec<Route> {
 
 //TODO: Guarded routes to protect against data leaking
 #[get("/")]
-async fn get_users() -> Result<Json<Vec<User>>, Status> {
+async fn get_users() -> ApiResult<Json<Vec<User>>> {
     let users = controllers::UserController::get_users().await;
     return match users {
         Ok(users) => Ok(Json(users)),
@@ -20,18 +20,18 @@ async fn get_users() -> Result<Json<Vec<User>>, Status> {
 }
 
 #[post("/", format = "json", data = "<user>")]
-async fn add_users(user: Json<UserDTO>) -> Result<JsonStatus<String>, Status> {
+async fn add_users<'a>(user: Json<UserDTO>) -> Jsonstr<'a> {
     return controllers::UserController::add_user(user.into_inner()).await;
 }
 
 #[put("/<user_id>", format = "json", data = "<user>")]
-async fn edit_user(user: Json<UserDTO>, user_id: String) -> Result<JsonStatus<String>, Status> {
+async fn edit_user(user: Json<UserDTO>, user_id: &str) -> Jsonstr {
     //let db_name = format!("users:{user_id}");
     return controllers::UserController::edit_user(user.into_inner(), user_id).await;
 }
 
 #[delete("/<user_id>")]
-async fn delete_user(user_id: String) -> Result<JsonStatus<String>, Status> {
-    let db_name = format!("users:{user_id}");
-    return controllers::UserController::delete_user(db_name).await;
+async fn delete_user(user_id: &str) -> Jsonstr {
+    //let db_name = format!("users:{user_id}");
+    return controllers::UserController::delete_user(user_id).await;
 }

@@ -1,111 +1,52 @@
 use rocket::http::Status;
-use surrealdb::sql::Value;
 
 use crate::{
-    models::UserModels::{CustomerDTO, DBCustomer},
-    util::responders::JsonStatus,
-    SurrealRepo,
+    models::UserModels::Customer,
+    repository::SurrealRepo,
+    util::responders::{ApiResult, JsonStatus, Jsonstr},
 };
 
-pub async fn get_customers(
-    db: &SurrealRepo,
-    mut find_all: Option<bool>,
-) -> Result<Vec<DBCustomer>, Status> {
-    if find_all.is_none() {
-        find_all = Some(false)
-    };
-    let customers = match find_all.unwrap() {
-        true => db.find(None, "customers").await,
-        false => db.find_where(None, "customers", "removed != true").await,
-    };
+pub async fn get_customers(find_all: Option<bool>) -> ApiResult<Vec<Customer>> {
+    let customers: Result<Vec<Customer>, surrealdb::Error> =
+        match find_all.is_some_and(|find| find == true) {
+            true => SurrealRepo::find("customers", "*").await,
+            false => Customer::find_removed().await,
+        };
 
     return match customers {
+        Ok(query) => Ok(query),
+        Err(_) => Err(Status::InternalServerError),
+    };
+}
+
+pub async fn add_customer<'a>(customer: Customer) -> Jsonstr<'a> {
+    let query = SurrealRepo::create("customers", customer).await;
+    return match query {
         Ok(query) => {
-            let query_result = query[0].output().unwrap();
-            if let Value::Array(rows) = query_result {
-                let customers: Vec<DBCustomer> = serde_json::from_value(serde_json::json!(&rows))
-                    .expect("Failed to parse customer data");
-                Ok(customers)
+                Ok(JsonStatus::success("Successfully created customer"))
+        }
+        Err(_) => Err(Status::InternalServerError),
+    };
+}
+
+pub async fn edit_customer(customer: Customer, customer_id: &str) -> Jsonstr {
+    let query = SurrealRepo::update("customers", &customer_id, customer).await;
+    return match query {
+        Ok(query) => {
+            if query.is_some() {
+                Ok(JsonStatus::success("Successfully updated customer"))
             } else {
-                Err(Status::BadRequest)
+                Ok(JsonStatus::custom(Status::NotFound, false, "Customer does not exist"))
             }
         }
         Err(_) => Err(Status::InternalServerError),
     };
 }
 
-pub async fn add_customer(
-    db: &SurrealRepo,
-    customer: CustomerDTO,
-) -> Result<JsonStatus<&str>, Status> {
-    let query = db.create("customers", customer, None).await;
+pub async fn remove_customer(customer_id: &str) -> Jsonstr {
+    let query = Customer::remove_customer(customer_id).await;
     return match query {
-        Ok(query) => {
-            let result_entry = query[0].output();
-            if result_entry.is_ok() {
-                Ok(JsonStatus {
-                    status_code: Status::Ok,
-                    status: true,
-                    message: "Successfully created customer",
-                })
-            } else {
-                Err(Status::BadRequest)
-            }
-        }
-        Err(_) => Err(Status::InternalServerError),
-    };
-}
-
-pub async fn edit_customer(
-    db: &SurrealRepo,
-    customer: CustomerDTO,
-    customer_id: String,
-) -> Result<JsonStatus<&str>, Status> {
-    let query = db.update(&customer_id, customer).await;
-    return match query {
-        Ok(query) => {
-            let empty_query = query[0].output().unwrap().first().is_none();
-            if !empty_query {
-                Ok(JsonStatus {
-                    status_code: Status::Ok,
-                    status: true,
-                    message: "Successfully updated customer",
-                })
-            } else {
-                Ok(JsonStatus {
-                    status_code: Status::NotFound,
-                    status: false,
-                    message: "Customer doesnt exist",
-                })
-            }
-        }
-        Err(_) => Err(Status::InternalServerError),
-    };
-}
-
-pub async fn remove_customer(
-    db: &SurrealRepo,
-    customer_id: String,
-) -> Result<JsonStatus<&str>, Status> {
-    let query_string = format!("UPDATE {0} SET removed = true", customer_id);
-    let query = db.query(&query_string).await;
-    return match query {
-        Ok(query) => {
-            let empty_query = query[0].output().unwrap().first().is_none();
-            if !empty_query {
-                Ok(JsonStatus {
-                    status_code: Status::Ok,
-                    status: true,
-                    message: "Customer removed successfully",
-                })
-            } else {
-                Ok(JsonStatus {
-                    status_code: Status::NotFound,
-                    status: false,
-                    message: "Customer doesnt exist",
-                })
-            }
-        }
+        Ok(_) => Ok(JsonStatus::success("Customer removed successfully")),
         Err(_) => Err(Status::InternalServerError),
     };
 }

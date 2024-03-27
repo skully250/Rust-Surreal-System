@@ -15,10 +15,10 @@ pub struct Action {
 }
 
 impl Action {
-    pub fn new(name: String, active: bool) -> Self {
+    pub fn new(name: &str, active: bool) -> Self {
         return Action {
             id: None,
-            name: name,
+            name: name.to_string(),
             active: active
         }
     }

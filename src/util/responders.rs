@@ -20,31 +20,40 @@ where
     pub message: T,
 }
 
-impl JsonStatus<String> {
-    pub fn success(message: &str) -> Self {
+//Response types to the frontend
+pub type ApiResult<T> = Result<T, Status>;
+pub type Jsonstr<'a> = ApiResult<JsonStatus<&'a str>>;
+pub type JsonString = ApiResult<JsonStatus<String>>;
+
+impl JsonStatus<&str> {
+    //Lifetimes have issues with Self return types?
+    //Unsure why
+    pub fn success(message: &str) -> JsonStatus<&str> {
         return JsonStatus {
             status_code: Status::Ok,
             status: true,
-            message: message.to_string(),
+            message: message,
         };
     }
 
-    pub fn failure(message: &str) -> Self {
+    pub fn failure(message: &str) -> JsonStatus<&str> {
         return JsonStatus {
             status_code: Status::InternalServerError,
             status: false,
-            message: message.to_string(),
+            message: message,
         };
     }
 
-    pub fn custom(code: Status, status: bool, message: &str) -> Self {
+    pub fn custom(code: Status, status: bool, message: &str) -> JsonStatus<&str> {
         return JsonStatus {
             status_code: code,
             status: status,
-            message: message.to_string(),
+            message: message,
         };
     }
+}
 
+impl JsonStatus<String> {
     pub fn created(item: &str) -> Self {
         let message = format!("Successfully created {item}");
         return JsonStatus {

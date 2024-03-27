@@ -32,6 +32,7 @@ where
     return serde_json::json!(content);
 }
 
+//TODO: Change this and find_where to be impl of models to specific variables, so dynamic queries cant pose an Injection Risk
 pub async fn find_all_where<T: DeserializeOwned>(
     collection: &str,
     find_statement: &str,

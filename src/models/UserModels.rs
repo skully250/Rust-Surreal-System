@@ -1,6 +1,9 @@
 use argon2::Config;
+use rocket::http::Status;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
+
+use crate::{repository::SurrealRepo::DB, util::responders::ApiResult};
 
 //Putting both customer and user in the same file since they both correlate to a person in the DB
 
@@ -35,7 +38,7 @@ struct Address {
     country: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Customer {
     #[serde(skip_serializing_if = "Option::is_none")]
     id: Option<Thing>,
@@ -44,6 +47,25 @@ pub struct Customer {
     address: Address,
     mobile_number: Option<Phone>,
     phone_number: Option<Phone>,
+}
+
+impl Customer {
+    pub async fn find_removed() -> Result<Vec<Self>, surrealdb::Error> {
+        let mut query = DB
+            .query("SELECT * FROM customers WHERE removed != true")
+            .await
+            .unwrap();
+        return query.take(0);
+    }
+
+    pub async fn remove_customer(customer_id: &str) -> ApiResult<&str> {
+        let query_string = format!("UPDATE customers:{customer_id} SET removed = true");
+        let query = DB.query(query_string).await;
+        return match query {
+            Ok(_) => Ok("Successfully removed customer"),
+            Err(_) => Err(Status::InternalServerError),
+        };
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -85,7 +107,7 @@ pub struct User {
 pub struct UserDTO {
     pub username: String,
     pub password: String,
-    pub role: Option<String>
+    pub role: Option<String>,
 }
 
 impl User {

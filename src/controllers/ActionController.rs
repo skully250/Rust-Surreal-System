@@ -1,10 +1,10 @@
 use rocket::{http::Status, State};
 
 use crate::{
-    models::ActionModels::{Action, ActionList}, util::responders::JsonStatus, SurrealRepo
+    models::ActionModels::{Action, ActionList}, util::responders::{ApiResult, JsonStatus, Jsonstr}, SurrealRepo
 };
 
-pub async fn get_actions() -> Result<Vec<Action>, Status> {
+pub async fn get_actions() -> ApiResult<Vec<Action>> {
     let query: Result<Vec<Action>, surrealdb::Error> = SurrealRepo::find_all("actions").await;
     return match query {
         Ok(query_result) => Ok(query_result),
@@ -12,14 +12,14 @@ pub async fn get_actions() -> Result<Vec<Action>, Status> {
     };
 }
 
-pub async fn create_action(
+pub async fn create_action<'a>(
     actions: &State<ActionList>,
     action_name: &str,
-) -> Result<JsonStatus<String>, Status> {
+) -> Jsonstr<'a> {
     let query = SurrealRepo::create_named(
         "actions",
         &action_name,
-        Action::new(action_name.to_owned(), true),
+        Action::new(action_name, true),
     )
     .await;
     println!("${:?}", query);
@@ -37,8 +37,8 @@ pub async fn update_action<'a>(
     action_list: &State<ActionList>,
     action_name: &str,
     active: bool,
-) -> Result<JsonStatus<String>, Status> {
-    let action_details = Action::new(action_name.to_string(), active);
+) -> Jsonstr<'a> {
+    let action_details = Action::new(action_name, active);
     let act_name = action_details.name.clone();
     let query = SurrealRepo::update("actions", &act_name, action_details).await;
     return match query {

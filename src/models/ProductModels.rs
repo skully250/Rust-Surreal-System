@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use surrealdb::sql::Thing;
 
-use crate::repository::SurrealRepo::{PopulatedValue, DB};
+use crate::{repository::SurrealRepo::{PopulatedValue, DB}, util::JsonUtil::MyThing};
 
 use super::ActionModels::Action;
 
@@ -14,7 +14,7 @@ use super::ActionModels::Action;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProductModel {
     #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<Thing>,
+    id: Option<MyThing>,
     pub name: String,
     price: u32,
     weight: String,
@@ -57,7 +57,7 @@ enum ProductQuantity {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Product {
     #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<Thing>,
+    id: Option<MyThing>,
     orderNo: u32,
     model: PopulatedValue<ProductModel>,
     //TODO: Update this to conform with new graph edges
@@ -68,7 +68,7 @@ pub struct Product {
 
 impl Product {
     pub fn new(orderNo: u32, model: &str, customizations: Option<Value>) -> Result<Self, ()> {
-        let model_thing = Thing::from_str(model)?;
+        let model_thing: MyThing = MyThing::from(Thing::from_str(model)?);
         return Ok(Product {
             id: None,
             orderNo: orderNo,

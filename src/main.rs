@@ -17,7 +17,7 @@ use rocket::{
 };
 
 use repository::SurrealRepo::{self, DBConfig};
-use routes::data::{ActionRoutes, ProductRoutes, UserRoutes};
+use routes::data::{ActionRoutes, CustomerRoutes, ProductRoutes, UserRoutes};
 use util::responders::{JsonStatus, Jsonstr};
 
 use crate::models::{ActionModels::Action, AuthModels::AuthUser};
@@ -117,7 +117,7 @@ async fn rocket() -> _ {
         //.mount("/api/orders", OrderRoutes::order_routes())
         .mount("/api/actions", ActionRoutes::action_routes())
         .mount("/api/products", ProductRoutes::product_routes())
-        //.mount("/api/customers", CustomerRoutes::customer_routes())
+        .mount("/api/customers", CustomerRoutes::customer_routes())
         .mount("/api/users", UserRoutes::user_routes())
         .register(
             "/api",

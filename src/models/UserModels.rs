@@ -3,7 +3,10 @@ use rocket::http::Status;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
 
-use crate::{repository::SurrealRepo::DB, util::responders::ApiResult};
+use crate::{
+    repository::SurrealRepo::DB,
+    util::{responders::ApiResult, JsonUtil::MyThing},
+};
 
 //Putting both customer and user in the same file since they both correlate to a person in the DB
 
@@ -41,7 +44,7 @@ struct Address {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Customer {
     #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<Thing>,
+    id: Option<MyThing>,
     name: String,
     email: String,
     address: Address,
@@ -52,7 +55,7 @@ pub struct Customer {
 impl Customer {
     pub async fn find_removed() -> Result<Vec<Self>, surrealdb::Error> {
         let mut query = DB
-            .query("SELECT * FROM customers WHERE removed != true")
+            .query("SELECT * FROM customers WHERE removed != false")
             .await
             .unwrap();
         return query.take(0);
@@ -96,7 +99,7 @@ impl From<&UserRole> for String {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct User {
     #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<Thing>,
+    id: Option<MyThing>,
     pub username: String,
     pub role: UserRole,
     salt: String,

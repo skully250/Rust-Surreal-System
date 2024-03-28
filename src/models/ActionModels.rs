@@ -4,12 +4,12 @@ use rocket::tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
 
-use crate::repository::SurrealRepo;
+use crate::{repository::SurrealRepo, util::JsonUtil::MyThing};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Action {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<Thing>,
+    pub id: Option<MyThing>,
     pub name: String,
     pub active: bool,
 }
@@ -43,8 +43,8 @@ pub struct ActionDTO {
  */
  #[derive(Debug, Serialize, Deserialize)]
  pub struct Actioned {
-     pub from: Thing,
-     pub to: Thing,
+     pub from: MyThing,
+     pub to: MyThing,
      pub action: SurrealRepo::PopulatedValue<ActionDetails>
  }
 

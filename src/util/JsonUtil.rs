@@ -1,5 +1,6 @@
 use rocket::{http::Status, serde::DeserializeOwned};
-use surrealdb::sql::Value;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use surrealdb::sql::{Thing, Value};
 
 //Possibly a poor way to translate from DB Return data to Struct data to ensure correctness
 
@@ -18,4 +19,45 @@ where
         Ok(data) => Ok(data),
         Err(_) => Err(Status::BadRequest),
     };
+}
+
+//Custom type used for serializing to JSON Format used by frontend
+//Code credit: barelm from the SurrealDB Discord
+//Modifications: deserialize as Thing then convert to string to fix errors
+#[derive(Debug, Clone)]
+pub struct MyThing(Thing);
+
+impl Serialize for MyThing {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = format!("{}:{}", self.0.id, self.0.tb);
+        serializer.serialize_str(&s)
+    }
+}
+
+impl<'de> Deserialize<'de> for MyThing {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let thing: Thing = Deserialize::deserialize(deserializer)?;
+        let s: String = thing.to_string();
+        let parts: Vec<&str> = s.split(':').collect();
+        if parts.len() == 2 {
+            Ok(MyThing(Thing {
+                id: surrealdb::sql::Id::String(parts[0].to_string()),
+                tb: parts[1].to_string(),
+            }))
+        } else {
+            Err(serde::de::Error::custom("Invalid format"))
+        }
+    }
+}
+
+impl From<Thing> for MyThing { 
+    fn from(thing: Thing) -> Self {
+        MyThing(thing)
+    }
 }

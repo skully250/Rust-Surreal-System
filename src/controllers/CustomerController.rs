@@ -15,17 +15,23 @@ pub async fn get_customers(find_all: Option<bool>) -> ApiResult<Vec<Customer>> {
 
     return match customers {
         Ok(query) => Ok(query),
-        Err(_) => Err(Status::InternalServerError),
+        Err(err) => {
+            println!("{:?}", err);
+            Err(Status::InternalServerError)
+        },
     };
 }
 
 pub async fn add_customer<'a>(customer: Customer) -> Jsonstr<'a> {
     let query = SurrealRepo::create("customers", customer).await;
     return match query {
-        Ok(query) => {
+        Ok(_) => {
                 Ok(JsonStatus::success("Successfully created customer"))
         }
-        Err(_) => Err(Status::InternalServerError),
+        Err(err) => {
+            println!("{:?}", err);
+            Err(Status::InternalServerError)
+        },
     };
 }
 

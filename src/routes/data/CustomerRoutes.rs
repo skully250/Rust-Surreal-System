@@ -1,8 +1,9 @@
-use rocket::{http::Status, serde::json::Json, Route};
+use rocket::{serde::json::Json, Route};
 
 use crate::{
     controllers,
-    util::responders::JsonStatus,
+    models::UserModels::Customer,
+    util::responders::{ApiResult, Jsonstr},
 };
 
 pub fn customer_routes() -> Vec<Route> {
@@ -15,9 +16,9 @@ pub fn customer_routes() -> Vec<Route> {
     return routes;
 }
 
-#[get("/?<removed>")]
-async fn get_customers(removed: Option<bool>) -> Result<Json<Vec<DBCustomer>>, Status> {
-    let controller_customers = controllers::CustomerController::get_customers(db, removed).await;
+#[get("/?<find_all>")]
+async fn get_customers(find_all: Option<bool>) -> ApiResult<Json<Vec<Customer>>> {
+    let controller_customers = controllers::CustomerController::get_customers(find_all).await;
     return match controller_customers {
         Ok(customers) => Ok(Json(customers)),
         Err(err) => Err(err),
@@ -25,20 +26,17 @@ async fn get_customers(removed: Option<bool>) -> Result<Json<Vec<DBCustomer>>, S
 }
 
 #[post("/", format = "json", data = "<customer>")]
-async fn add_customer(customer: Json<CustomerDTO>) -> Result<JsonStatus<&str>, Status> {
-    return controllers::CustomerController::add_customer(db, customer.into_inner()).await;
+async fn add_customer<'a>(customer: Json<Customer>) -> Jsonstr<'a> {
+    return controllers::CustomerController::add_customer(customer.into_inner()).await;
 }
 
 #[put("/<customer_id>", format = "json", data = "<customer>")]
-async fn update_customer(
-    customer: Json<CustomerDTO>,
-    customer_id: String,
-) -> Result<JsonStatus<&str>, Status> {
-    return controllers::CustomerController::edit_customer(db, customer.into_inner(), customer_id)
+async fn update_customer(customer: Json<Customer>, customer_id: &str) -> Jsonstr {
+    return controllers::CustomerController::edit_customer(customer.into_inner(), customer_id)
         .await;
 }
 
 #[delete("/<customer_id>")]
-async fn delete_customer(customer_id: String) -> Result<JsonStatus<&str>, Status> {
-    return controllers::CustomerController::remove_customer(db, customer_id).await;
+async fn delete_customer(customer_id: &str) -> Jsonstr {
+    return controllers::CustomerController::remove_customer(customer_id).await;
 }

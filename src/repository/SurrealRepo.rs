@@ -1,7 +1,9 @@
 use once_cell::sync::Lazy;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::fmt::Debug;
-use surrealdb::{engine::remote::ws::{Client, Ws}, opt::PatchOp, sql::Thing, Response, Surreal};
+use surrealdb::{engine::remote::ws::{Client, Ws}, opt::PatchOp, Response, Surreal};
+
+use crate::util::JsonUtil::MyThing;
 
 pub static DB: Lazy<Surreal<Client>> = Lazy::new(Surreal::init);
 
@@ -9,7 +11,7 @@ pub static DB: Lazy<Surreal<Client>> = Lazy::new(Surreal::init);
 #[serde(untagged)]
 pub enum PopulatedValue<T> {
     Populated(T),
-    Unpopulated(Thing)
+    Unpopulated(MyThing)
 }
 
 pub struct DBConfig<'a> {

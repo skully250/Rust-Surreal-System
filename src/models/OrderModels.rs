@@ -21,8 +21,8 @@ pub struct OrderDTO {
 //DB Order will handle data fetched from the Database with an ID, whereas Order will just handle regular data
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DBOrder {
-    id: Thing,
-    customer: Thing,
+    id: MyThing,
+    customer: MyThing,
     products: Option<OrderProducts>,
     removed: bool,
     created_date: Datetime,

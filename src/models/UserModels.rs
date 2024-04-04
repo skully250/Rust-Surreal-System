@@ -1,7 +1,6 @@
 use argon2::Config;
 use rocket::http::Status;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
 
 use crate::{
     repository::SurrealRepo::DB,

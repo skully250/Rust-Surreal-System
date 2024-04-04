@@ -1,11 +1,17 @@
+use std::str::FromStr;
+
 use crate::{
-    models::ProductModels,
-    repository::SurrealRepo::{DBInteractions, SurrealRepo},
+    repository::SurrealRepo::{self, PopulatedValue},
+    util::JsonUtil::MyThing,
 };
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
 
-use super::UserModels::DBUser;
+use super::{
+    ProductModels::Product,
+    UserModels::{Customer, User},
+};
 
 /*
  * The Order DTO is created as a way to create a parseable input
@@ -13,93 +19,50 @@ use super::UserModels::DBUser;
  */
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OrderDTO {
-    customer: String,
-    products: Vec<super::ProductModels::ProductDTO>,
+    pub customer: String,
+    //???
+    pub products: Vec<Product>,
     due_date: String,
 }
 
-//DB Order will handle data fetched from the Database with an ID, whereas Order will just handle regular data
 #[derive(Debug, Serialize, Deserialize)]
-pub struct DBOrder {
-    id: MyThing,
-    customer: MyThing,
-    products: Option<OrderProducts>,
+pub struct Order {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<MyThing>,
+    orderNo: Option<u32>,
+    customer: PopulatedValue<Customer>,
+    pub products: Option<Vec<PopulatedValue<Product>>>,
     removed: bool,
     created_date: Datetime,
     due_date: Datetime,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Order {
-    customer: String,
-    removed: bool,
-    due_date: Datetime,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-enum OrderProducts {
-    Populated(Vec<ProductModels::DBProduct>),
-    Creating(Vec<ProductModels::ProductDTO>),
-}
-
-//Not sure if redacting or returning to Trait implementations of DB
-#[rocket::async_trait]
-impl DBInteractions<DBOrder> for DBOrder {
-    async fn find(db: &SurrealRepo) -> Result<DBOrder, surrealdb::Error> {
-        todo!()
-    }
-
-    async fn find_where(db: &SurrealRepo) -> Result<Vec<DBOrder>, surrealdb::Error> {
-        todo!()
-    }
-
-    async fn find_all(db: &SurrealRepo) -> Result<Vec<DBOrder>, surrealdb::Error> {
-        let query = db.find(None, "orders").await;
-        return match query {
-            Ok(query) => DBOrder::default_find_all(query),
-            Err(e) => Err(e),
+impl Order {
+    pub fn new(order: &OrderDTO) -> Self {
+        let due_date: DateTime<Utc> = DateTime::from_str(order.due_date.as_str()).unwrap();
+        let created_time: DateTime<Utc> = Utc::now();
+        return Order {
+            id: None,
+            orderNo: None,
+            customer: PopulatedValue::Unpopulated(Thing::from((
+                "customers",
+                order.customer.as_str(),
+            ))),
+            //Products are created during the process and added to the order
+            products: None,
+            removed: false,
+            created_date: Datetime::from(created_time),
+            due_date: Datetime::from(due_date),
         };
     }
 
-    async fn create(db: &SurrealRepo) -> Result<bool, surrealdb::Error> {
-        todo!()
-    }
-
-    async fn update(db: &SurrealRepo) -> Result<bool, surrealdb::Error> {
-        todo!()
-    }
-}
-
-impl DBOrder {
-    async fn get_created_by(
-        db: &SurrealRepo,
-        order_no: u32,
-    ) -> Result<Option<DBUser>, surrealdb::Error> {
+    async fn get_created_by(order_no: u32) -> Result<User, surrealdb::Error> {
         let order_id = format!("orders:{order_no}");
-        let results = db.find(Some("->created->user.*"), &order_id).await;
+        let results: Result<User, surrealdb::Error> =
+            SurrealRepo::find("->created->user.*", &order_id).await;
         return match results {
-            Ok(find_output) => {
-                let find_result = find_output[0].output().unwrap();
-                let find_string = find_result.to_string();
-                //This probably doesnt work from other tests
-                let user: Vec<DBUser> =
-                    serde_json::from_str(&find_string).expect("Failed to parse into user data");
-                Ok(user.into_iter().nth(0))
-            }
+            Ok(find_output) => Ok(find_output),
             Err(_) => panic!("Failed to find user that created order"),
         };
-    }
-}
-
-impl Order {
-    pub fn new(order: OrderDTO) -> Self {
-        let due_date: &str = &order.due_date;
-        Order {
-            customer: order.customer,
-            products: OrderProducts::Creating(order.products),
-            removed: false,
-            due_date: Datetime::from(due_date),
-        }
     }
 }

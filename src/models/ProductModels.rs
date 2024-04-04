@@ -1,11 +1,11 @@
-use std::str::FromStr;
-
 use rocket::http::Status;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use surrealdb::sql::Thing;
 
-use crate::{repository::SurrealRepo::{PopulatedValue, DB}, util::JsonUtil::MyThing};
+use crate::{
+    repository::SurrealRepo::{PopulatedValue, DB},
+    util::JsonUtil::MyThing,
+};
 
 use super::ActionModels::Action;
 
@@ -28,12 +28,15 @@ impl ProductModel {
             name: name,
             price: price,
             weight: weight,
-            size: size
-        }
+            size: size,
+        };
     }
 
     pub async fn find_active() -> Vec<Self> {
-        let mut query = DB.query("SELECT * FROM type::table(models) WHERE active = true").await.unwrap();
+        let mut query = DB
+            .query("SELECT * FROM type::table(models) WHERE active = true")
+            .await
+            .unwrap();
         return query.take(0).expect("No models found");
     }
 
@@ -58,30 +61,10 @@ enum ProductQuantity {
 pub struct Product {
     #[serde(skip_serializing_if = "Option::is_none")]
     id: Option<MyThing>,
-    orderNo: u32,
+    orderNo: Option<u32>,
     model: PopulatedValue<ProductModel>,
     //TODO: Update this to conform with new graph edges
     actions: Option<ProductQuantity>,
     //JSON Data that can be read by a customized frontend for product differences
-    customizations: Option<Value>,
-}
-
-impl Product {
-    pub fn new(orderNo: u32, model: &str, customizations: Option<Value>) -> Result<Self, ()> {
-        let model_thing: MyThing = MyThing::from(Thing::from_str(model)?);
-        return Ok(Product {
-            id: None,
-            orderNo: orderNo,
-            model: PopulatedValue::Unpopulated(model_thing),
-            actions: None,
-            customizations: customizations
-        });
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ProductDTO {
-    orderNo: u32,
-    model: String,
     customizations: Option<Value>,
 }

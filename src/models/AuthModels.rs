@@ -7,7 +7,7 @@ use rocket::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::repository::SurrealRepo;
+use crate::repository::SurrealRepo::DB;
 
 #[derive(Serialize)]
 pub struct LoginResponse {
@@ -48,29 +48,18 @@ fn grab_token<'a>(req: &Request) -> Result<TokenData<Claims>, &'a str> {
     return Ok(decoded);
 }
 
-async fn get_role<'a>(token: &TokenData<Claims>) -> Result<String, &'a str> {
-    let where_statement = format!("username = '{0}'", token.claims.sub);
-    let db_query: Result<Vec<String>, surrealdb::Error> =
-        SurrealRepo::find_where("users", "role", &where_statement).await;
+async fn get_role<'a>(token_sub: &str) -> Option<String> {
+    let db_query = DB
+        .query("SELECT role FROM users WHERE username = $username")
+        .bind(("username", token_sub))
+        .await;
 
     match db_query {
-        Ok(query) => {
-            println!("{:?}", query);
-
-            let user: Option<&String> = query.first();
-
-            //Might move this into a struct rather than destructuring the json like this
-            match user {
-                Some(user) => {
-                    return Ok(user.to_string());
-                }
-                None => {
-                    return Err("Error fetching user");
-                }
-            }
-        }, Err(_) => {
-            Err("error running db query")
+        Ok(mut query) => {
+            let user: Option<String> = query.take((0, "role")).unwrap();
+            return user;
         }
+        Err(_) => None
     }
 }
 
@@ -83,9 +72,9 @@ impl<'r> FromRequest<'r> for AuthUser {
 
         match token {
             Ok(token) => {
-                let user_role = get_role(&token).await;
+                let user_role = get_role(&token.claims.sub).await;
                 match user_role {
-                    Ok(user_role) => {
+                    Some(user_role) => {
                         println!("{:?}", user_role);
                         if (user_role != "User") && (user_role != "Admin") {
                             return request::Outcome::Error((
@@ -94,8 +83,8 @@ impl<'r> FromRequest<'r> for AuthUser {
                             ));
                         }
                     }
-                    Err(error) => {
-                        return request::Outcome::Error((Status::Unauthorized, error));
+                    None => {
+                        return request::Outcome::Error((Status::Unauthorized, "Failed to find user"));
                     }
                 }
 
@@ -119,9 +108,9 @@ impl<'r> FromRequest<'r> for AuthAdmin {
 
         match token {
             Ok(token) => {
-                let user_role = get_role(&token).await;
+                let user_role = get_role(&token.claims.sub).await;
                 match user_role {
-                    Ok(user_role) => {
+                    Some(user_role) => {
                         if user_role != "Admin" {
                             return request::Outcome::Error((
                                 Status::Unauthorized,
@@ -129,8 +118,8 @@ impl<'r> FromRequest<'r> for AuthAdmin {
                             ));
                         }
                     }
-                    Err(error) => {
-                        return request::Outcome::Error((Status::Unauthorized, error));
+                    None => {
+                        return request::Outcome::Error((Status::Unauthorized, "Failed to find user"));
                     }
                 }
 

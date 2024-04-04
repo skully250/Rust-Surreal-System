@@ -1,4 +1,4 @@
-//pub mod OrderRoutes;
+pub mod OrderRoutes;
 pub mod ActionRoutes;
 pub mod ProductRoutes;
 pub mod UserRoutes;

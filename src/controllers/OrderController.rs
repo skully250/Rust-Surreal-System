@@ -1,183 +1,112 @@
 use rocket::http::Status;
 use serde::Deserialize;
-use surrealdb::sql::{Thing, Value};
+use surrealdb::sql::statements::{BeginStatement, CommitStatement};
 
 use crate::{
     models::{
         AuthModels,
-        OrderModels::{self},
+        OrderModels::{self, Order},
     },
-    util::{
-        responders::JsonStatus,
-        JsonUtil::{self, query_translate},
-    },
-    SurrealRepo,
+    repository::SurrealRepo::{self, DB},
+    util::responders::JsonStatus,
 };
 
 #[derive(Deserialize)]
 struct RelatedOrders {
-    orders: Vec<OrderModels::DBOrder>,
-}
-
-pub fn get_thing(val: &Value) -> Result<&Thing, Status> {
-    match val {
-        Value::Thing(t) => Ok(t),
-        _ => Err(Status::BadRequest),
-    }
+    orders: Vec<OrderModels::Order>,
 }
 
 //Using namespaces to avoid confusiong between model and controller
-pub async fn get_orders(db: &SurrealRepo) -> Result<Vec<OrderModels::DBOrder>, Status> {
-    let query = db.query("SELECT *, (SELECT * FROM $parent.products[*].model LIMIT 1) as products[*].model FROM orders WHERE removed != true").await;
+pub async fn get_orders() -> Result<Vec<Order>, Status> {
+    let query: Result<surrealdb::Response, surrealdb::Error> = SurrealRepo::query("SELECT * FROM orders FETCH customer, products, products.models;").await;
     //println!("{:?}", query);
     return match query {
-        Ok(query) => {
-            let order_result = query[0].output().unwrap();
-            return query_translate(&order_result);
+        Ok(mut query_return) => {
+            let order_result: Vec<Order> = query_return.take(0).unwrap();
+            Ok(order_result)
         }
         Err(_) => Err(Status::InternalServerError),
     };
 }
 
-pub async fn get_orders_by_user<'a>(
-    db: &SurrealRepo,
-    user: &str,
-) -> Result<Vec<OrderModels::DBOrder>, Status> {
-    //Potential to swap this for a new impl fn for this functionality
-    let query_string = format!(
-        "SELECT ->created->orders.* AS orders FROM users:{0} FETCH orders.products.model",
-        user
-    );
-    let query = db.query(&query_string).await;
+pub async fn get_orders_by_user(user: &str) -> Result<Vec<OrderModels::Order>, Status> {
+    //Potential: make this an extension of user
+    let query = DB
+        .query("select ->created->orders.* AS orders FROM $user FETCH orders.products.model")
+        .bind(("user", format!("users:{user}")))
+        .await;
     return match query {
-        Ok(query) => {
-            let order_result = query[0].output().unwrap();
-            if let Value::Array(rows) = order_result {
-                println!("{:?}", rows.first());
-                //Create Custom struct because of how the data returns from the DB
-                let order_data: RelatedOrders = JsonUtil::query_translate(&rows.first().unwrap())
-                    .expect("Failed to parse data");
-                return Ok(order_data.orders);
-            } else {
-                Err(Status::BadRequest)
-            }
+        Ok(mut query_response) => {
+            let order_result = query_response.take(0).unwrap();
+            Ok(order_result)
         }
         Err(_) => Err(Status::InternalServerError),
     };
 }
 
 //Transaction based function
-pub async fn create_order(db: &SurrealRepo, content: OrderModels::OrderDTO, user: &AuthModels::AuthUser) -> Result<JsonStatus<&'a str>, Status> {
-    let order: (Order, Vec<ProductDTO>)= OrderModels::Order;:new(content);
-    let order_data = serde_json::json!(order[0]).to_string();
-    let product_data = serde_json::json!(order[1]).to_string();
-    //Transaction to catch failed product or order insertion
-    //TODO: Work out how to deal with invoice creation mid transaction
-    //TODO: Find way to get ID while inside transaction (Alt: Generate ID before creation)
-    println!("{:?}", product_data);
-    let query_statement = surrealdb::Surreal<Client>.query(BeginStatement)
-    .query("CREATE orders CONTENT $order")
-    .query("INSERT INTO products [$products]")
-    .query("RELATE $user_id->created->$order_id SET time.created = time::now()")
-    .query(CommitStatement)
-    .bind(("order", order_data))
-    .bind(("products", product_data))
-
-    let query = db.execute(query_statement).await?;
-
-    return match query {
-        Ok(query) => {
-            let result_entry = query[0].output.expect("Error in creating entry");
-            Ok(JsonStatus::Created("order"))
-            /*Ok(JsonStatus {
-                status_code: Status::Ok,
-                status: true,
-                message: "Successfully created order"
-            })*/
-        },
-        Err(_) => {
-            Err(Status::InternalServerError)
-        }
-    }
-}
-
-//TODO: Turn into a transaction so that creating order -> relation fail doesnt result in stranded entries
-pub async fn create_order<'a>(
-    db: &SurrealRepo,
+pub async fn create_order(
     content: OrderModels::OrderDTO,
     user: &AuthModels::AuthUser,
-) -> Result<JsonStatus<&'a str>, Status> {
-    let order = OrderModels::Order::new(content);
-    let query = db.create("orders", order, None).await;
+) -> Result<JsonStatus<String>, Status> {
+    let order: Order = OrderModels::Order::new(&content);
+    //Transaction to catch failed product or order insertion
+    //TODO: Work out how to deal with invoice creation mid transaction
+    //Without value it returns array objects, i want singular values
+    let query = DB
+        .query(BeginStatement)
+        .query("let $order_no = UPDATE counter:orders SET orders += 1 RETURN VALUE orders;")
+        .query("let $product_ids = INSERT INTO products $products RETURN VALUE id;")
+        .query("UPDATE $product_ids SET orderNo = array::first($order_no);")
+        .query("let $order_id = CREATE orders CONTENT $order RETURN VALUE id;")
+        .query("let $customer_id = SELECT VALUE id FROM customers WHERE name = $customer_name;")
+        .query("UPDATE $order_id SET products = $product_ids, customer = array::first($customer_id), orderNo = array::first($order_no) RETURN AFTER")
+        //.query("RELATE users:$user_id->created->$order_id SET time.created = time::now();")
+        .query(CommitStatement)
+        .bind(("order", order))
+        .bind(("products", content.products))
+        .bind(("user_id", &user.user))
+        .bind(("customer_name", content.customer))
+        .await;
+
     return match query {
-        Ok(query) => {
-            let result_entry = query[0].output().expect("Error in creating entry");
-            if let Value::Object(entry) = result_entry.first() {
-                let value = get_thing(entry.get("id").unwrap()).unwrap();
-                let username = format!("users:{0}", user.user);
-                let related = db
-                    .relate(
-                        &username,
-                        "created",
-                        &value.to_string(),
-                        "time.created = time::now()",
-                    )
-                    .await
-                    .expect("Failed to relate documents");
-                println!("ID: {:?}", related);
-                Ok(JsonStatus {
-                    status_code: Status::Ok,
-                    status: true,
-                    message: "Successfully created order",
-                })
-            } else {
-                Err(Status::BadRequest)
-            }
+        Ok(mut query_return) => {
+            let result_entry: Vec<Order> = query_return.take(6).unwrap();
+            println!("{:?}", result_entry);
+            Ok(JsonStatus::created("order"))
         }
         Err(_) => Err(Status::InternalServerError),
     };
 }
 
-pub async fn update_order<'a>(
-    db: &SurrealRepo,
+pub async fn update_order(
     order_id: &str,
-    order: OrderModels::OrderDTO,
-) -> Result<JsonStatus<&'a str>, Status> {
+    order: OrderModels::Order,
+) -> Result<JsonStatus<&str>, Status> {
     let cur_order = format!("orders:{order_id}");
-    let query = db.update(&cur_order, order).await;
+    //Todo: Check for non-product updates such as customer changes
+    let query = DB
+        .query(BeginStatement)
+        .query("let $product_ids = (INSERT INTO products $products RETURN id)")
+        .query("INSERT INTO $order_id $order")
+        .query("UPDATE $order_id SET products = $product_ids")
+        .query(CommitStatement)
+        .bind(("order_id", cur_order))
+        .bind(("products", order.products))
+        .await;
     return match query {
-        Ok(query) => {
-            let result = query[0].output();
-            if result.is_ok() {
-                Ok(JsonStatus {
-                    status_code: Status::Ok,
-                    status: true,
-                    message: "Order successfully updated",
-                })
-            } else {
-                Err(Status::BadRequest)
-            }
-        }
+        Ok(_) => Ok(JsonStatus::success("Order successfully updated")),
         Err(_) => Err(Status::InternalServerError),
     };
 }
 
-pub async fn delete_order<'a>(db: &SurrealRepo, order_id: &str) -> Result<JsonStatus<&'a str>, Status> {
-    let query_str = format!("UPDATE {order_id} SET removed = true");
-    let query = db.query(&query_str).await;
+pub async fn delete_order(order_id: &str) -> Result<JsonStatus<&str>, Status> {
+    let query = DB
+        .query("UPDATE $order_id SET removed = true")
+        .bind(("order_id", order_id))
+        .await;
     return match query {
-        Ok(query) => {
-            let result = query[0].output();
-            if result.is_ok() {
-                Ok(JsonStatus {
-                    status_code: Status::Ok,
-                    status: true,
-                    message: "Order successfully deleted",
-                })
-            } else {
-                Err(Status::BadRequest)
-            }
-        }
+        Ok(_) => Ok(JsonStatus::success("Order successfully deleted")),
         Err(_) => Err(Status::InternalServerError),
     };
 }

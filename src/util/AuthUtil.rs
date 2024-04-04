@@ -7,7 +7,7 @@ use rocket::http::Status;
 
 pub fn create_jwt(uid: &str, role: &UserRole) -> Result<String, Status> {
     let expiration = Utc::now()
-        .checked_add_signed(chrono::Duration::weeks(2))
+        .checked_add_signed(chrono::Duration::try_weeks(2).unwrap())
         .expect("Valid timestamp")
         .timestamp();
 

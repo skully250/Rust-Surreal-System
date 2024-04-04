@@ -45,6 +45,7 @@ impl<'de> Deserialize<'de> for MyThing {
         let thing: Thing = Deserialize::deserialize(deserializer)?;
         let s: String = thing.to_string();
         let parts: Vec<&str> = s.split(':').collect();
+        println!("{:?}", parts);
         if parts.len() == 2 {
             Ok(MyThing(Thing {
                 id: surrealdb::sql::Id::String(parts[0].to_string()),
@@ -56,8 +57,26 @@ impl<'de> Deserialize<'de> for MyThing {
     }
 }
 
-impl From<Thing> for MyThing { 
+impl From<Thing> for MyThing {
     fn from(thing: Thing) -> Self {
         MyThing(thing)
+    }
+}
+
+impl From<String> for MyThing {
+    fn from(thing: String) -> Self {
+        MyThing::from(thing.split_once(":").unwrap())
+    }
+}
+
+impl From<&str> for MyThing {
+    fn from(string: &str) -> Self {
+        MyThing::from(string.split_once(":").unwrap())
+    }
+}
+
+impl From<(&str, &str)> for MyThing {
+    fn from(id_string: (&str, &str)) -> Self {
+        MyThing(Thing::from((id_string.0, id_string.1)))
     }
 }

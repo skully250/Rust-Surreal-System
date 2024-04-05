@@ -21,11 +21,10 @@ pub async fn get_models(
 }
 
 pub async fn add_model<'a>(
-    content: ProductModels::ProductModel,
+    content: ProductModels::ProductModel
 ) -> Result<JsonStatus<&'a str>, Status> {
     //Take ownership of DTO Name as it is required for creation of the model in the DB
-    let name = content.name.to_owned();
-    let query = SurrealRepo::create_named("models", &name, content).await;
+    let query = SurrealRepo::create("models", content).await;
     return match query {
         Ok(_) => Ok(JsonStatus::success("Successfully created new model")),
         Err(_) => Err(Status::InternalServerError),

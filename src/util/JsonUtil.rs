@@ -45,7 +45,6 @@ impl<'de> Deserialize<'de> for MyThing {
         let thing: Thing = Deserialize::deserialize(deserializer)?;
         let s: String = thing.to_string();
         let parts: Vec<&str> = s.split(':').collect();
-        println!("{:?}", parts);
         if parts.len() == 2 {
             Ok(MyThing(Thing {
                 id: surrealdb::sql::Id::String(parts[0].to_string()),

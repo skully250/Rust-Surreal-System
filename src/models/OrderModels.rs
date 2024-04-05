@@ -1,10 +1,11 @@
 use std::str::FromStr;
 
 use crate::{
-    repository::SurrealRepo::{self, PopulatedValue},
-    util::JsonUtil::MyThing,
+    repository::SurrealRepo::{self, PopulatedValue, DB},
+    util::{responders::ApiResult, JsonUtil::MyThing},
 };
 use chrono::{DateTime, Utc};
+use rocket::http::Status;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
 
@@ -56,13 +57,14 @@ impl Order {
         };
     }
 
-    async fn get_created_by(order_no: u32) -> Result<User, surrealdb::Error> {
-        let order_id = format!("orders:{order_no}");
-        let results: Result<User, surrealdb::Error> =
-            SurrealRepo::find("->created->user.*", &order_id).await;
-        return match results {
-            Ok(find_output) => Ok(find_output),
-            Err(_) => panic!("Failed to find user that created order"),
-        };
+    pub async fn orders_by_customer_name(customer_name: &str) -> ApiResult<Vec<Self>> {
+        let query = DB.query("SELECT * FROM orders WHERE customer.name = $customer_name FETCH customer, products").bind(("customer_name", customer_name)).await;
+        match query {
+            Ok(mut query_response) => {
+                let orders: Vec<Self> = query_response.take(0).unwrap();
+                Ok(orders)
+            }
+            Err(_) => Err(Status::InternalServerError),
+        }
     }
 }

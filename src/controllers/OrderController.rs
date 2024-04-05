@@ -18,7 +18,8 @@ struct RelatedOrders {
 
 //Using namespaces to avoid confusiong between model and controller
 pub async fn get_orders() -> Result<Vec<Order>, Status> {
-    let query: Result<surrealdb::Response, surrealdb::Error> = SurrealRepo::query("SELECT * FROM orders FETCH customer, products, products.models;").await;
+    let query: Result<surrealdb::Response, surrealdb::Error> =
+        SurrealRepo::query("SELECT * FROM orders FETCH customer, products, products.models;").await;
     //println!("{:?}", query);
     return match query {
         Ok(mut query_return) => {
@@ -50,6 +51,8 @@ pub async fn create_order(
     user: &AuthModels::AuthUser,
 ) -> Result<JsonStatus<String>, Status> {
     let order: Order = OrderModels::Order::new(&content);
+    //Could not find reliable way to do this without preformatting string
+    let relate_query = format!("RELATE users:{}->created->$order_id SET time.created = time::now();", &user.user);
     //Transaction to catch failed product or order insertion
     //TODO: Work out how to deal with invoice creation mid transaction
     //Without value it returns array objects, i want singular values
@@ -60,18 +63,19 @@ pub async fn create_order(
         .query("UPDATE $product_ids SET orderNo = array::first($order_no);")
         .query("let $order_id = CREATE orders CONTENT $order RETURN VALUE id;")
         .query("let $customer_id = SELECT VALUE id FROM customers WHERE name = $customer_name;")
-        .query("UPDATE $order_id SET products = $product_ids, customer = array::first($customer_id), orderNo = array::first($order_no) RETURN AFTER")
-        //.query("RELATE users:$user_id->created->$order_id SET time.created = time::now();")
+        .query("UPDATE $order_id SET products = $product_ids, customer = array::first($customer_id), orderNo = array::first($order_no) RETURN AFTER;")
+        .query(relate_query)
         .query(CommitStatement)
         .bind(("order", order))
         .bind(("products", content.products))
-        .bind(("user_id", &user.user))
         .bind(("customer_name", content.customer))
         .await;
 
+    println!("{:?}", query);
+
     return match query {
         Ok(mut query_return) => {
-            let result_entry: Vec<Order> = query_return.take(6).unwrap();
+            let result_entry: Vec<Order> = query_return.take(5).unwrap();
             println!("{:?}", result_entry);
             Ok(JsonStatus::created("order"))
         }

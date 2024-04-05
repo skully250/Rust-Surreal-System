@@ -14,6 +14,7 @@ pub fn order_routes() -> Vec<Route> {
         update_order,
         delete_order,
         get_orders_by_user,
+        get_orders_by_customer
         //action_product
     ];
     return routes;
@@ -33,12 +34,16 @@ async fn get_orders() -> Result<Json<Vec<Order>>, Status> {
     };
 }
 
-#[get("/?<customer>")]
-async fn get_orders_by_customer(customer: &str) -> Status {
-    return Status::NotImplemented;
+#[get("/customer?<customer>")]
+async fn get_orders_by_customer(customer: &str) -> Result<Json<Vec<Order>>, Status> {
+    let orders = Order::orders_by_customer_name(customer).await;
+    return match orders {
+        Ok(found) => Ok(Json(found)),
+        Err(err) => Err(err)
+    }
 }
 
-#[get("/?<user>")]
+#[get("/user?<user>")]
 async fn get_orders_by_user(user: &str) -> Result<Json<Vec<Order>>, Status> {
     let related_orders = controllers::OrderController::get_orders_by_user(user).await;
     return match related_orders {

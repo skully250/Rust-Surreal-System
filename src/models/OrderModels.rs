@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    repository::SurrealRepo::{self, PopulatedValue, DB},
+    repository::SurrealRepo::{PopulatedValue, DB},
     util::{responders::ApiResult, JsonUtil::MyThing},
 };
 use chrono::{DateTime, Utc};
@@ -9,10 +9,7 @@ use rocket::http::Status;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
 
-use super::{
-    ProductModels::Product,
-    UserModels::{Customer, User},
-};
+use super::{ProductModels::Product, UserModels::Customer};
 
 /*
  * The Order DTO is created as a way to create a parseable input
@@ -45,10 +42,10 @@ impl Order {
         return Order {
             id: None,
             orderNo: None,
-            customer: PopulatedValue::Unpopulated(Thing::from((
+            customer: PopulatedValue::Unpopulated(MyThing::from(Thing::from((
                 "customers",
                 order.customer.as_str(),
-            ))),
+            )))),
             //Products are created during the process and added to the order
             products: None,
             removed: false,

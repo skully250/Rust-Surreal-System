@@ -19,7 +19,7 @@ struct RelatedOrders {
 //Using namespaces to avoid confusiong between model and controller
 pub async fn get_orders() -> Result<Vec<Order>, Status> {
     let query: Result<surrealdb::Response, surrealdb::Error> =
-        SurrealRepo::query("SELECT * FROM orders FETCH customer, products, products.models;").await;
+        SurrealRepo::query("SELECT *, (SELECT *, array::first((SELECT VALUE array::first(<-actioned.actions) FROM $parent.id)) as actions FROM $parent.products) as products FROM orders FETCH customer;").await;
     //println!("{:?}", query);
     return match query {
         Ok(mut query_return) => {
@@ -52,7 +52,10 @@ pub async fn create_order(
 ) -> Result<JsonStatus<String>, Status> {
     let order: Order = OrderModels::Order::new(&content);
     //Could not find reliable way to do this without preformatting string
-    let relate_query = format!("RELATE users:{}->created->$order_id SET time.created = time::now();", &user.user);
+    let relate_query = format!(
+        "RELATE users:{}->created->$order_id SET time.created = time::now();",
+        &user.user
+    );
     //Transaction to catch failed product or order insertion
     //TODO: Work out how to deal with invoice creation mid transaction
     //Without value it returns array objects, i want singular values
@@ -71,13 +74,18 @@ pub async fn create_order(
         .bind(("customer_name", content.customer))
         .await;
 
-    println!("{:?}", query);
+    //println!("{:?}", query);
 
     return match query {
         Ok(mut query_return) => {
-            let result_entry: Vec<Order> = query_return.take(5).unwrap();
-            println!("{:?}", result_entry);
-            Ok(JsonStatus::created("order"))
+            let result_entry: Result<Vec<Order>, surrealdb::Error> = query_return.take(5);
+            //Input data is fine, return data is erroring
+            if result_entry.is_ok() {
+                Ok(JsonStatus::created("order"))
+            } else {
+                println!("{:?}", result_entry);
+                Err(Status::InternalServerError)
+            }
         }
         Err(_) => Err(Status::InternalServerError),
     };

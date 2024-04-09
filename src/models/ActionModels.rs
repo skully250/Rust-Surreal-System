@@ -32,8 +32,15 @@ pub struct ActionDetails {
 
 #[derive(Serialize, Deserialize)]
 pub struct ActionDTO {
-    pub action_name: String,
-    pub action: Action,
+    pub employee_id: String,
+    pub product_id: String
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ActionEnum {
+    emp_id(u32),
+    datetime(String)
 }
 
 /*

@@ -1,10 +1,12 @@
 use rocket::http::Status;
 use rocket::{serde::json::Json, Route, State};
 
-use crate::models::ActionModels::ActionList;
+use crate::controllers::ActionController;
+use crate::models::ActionModels::{ActionDTO, ActionList};
 use crate::models::AuthModels::AuthUser;
 use crate::models::OrderModels::Order;
-use crate::util::responders::JsonStatus;
+use crate::repository::SurrealRepo::DB;
+use crate::util::responders::{JsonStatus, Jsonstr};
 use crate::{controllers, models};
 
 pub fn order_routes() -> Vec<Route> {
@@ -14,8 +16,9 @@ pub fn order_routes() -> Vec<Route> {
         update_order,
         delete_order,
         get_orders_by_user,
-        get_orders_by_customer
-        //action_product
+        get_orders_by_customer,
+        action_product,
+        get_unpopulated_orders
     ];
     return routes;
 }
@@ -23,6 +26,18 @@ pub fn order_routes() -> Vec<Route> {
 async fn action_exists(action_name: &String, action_list: &State<ActionList>) -> bool {
     let action_list = action_list.actions.read().await;
     action_list.contains(action_name)
+}
+
+#[get("/unpopulated")]
+async fn get_unpopulated_orders() -> Result<Json<Vec<Order>>, Status> {
+    let query = DB.query("SELECT * FROM orders").await;
+    return match query {
+        Ok(mut response) => {
+            let orders: Vec<Order> = response.take(0).unwrap();
+            Ok(Json(orders))
+        }
+        Err(err) => Err(Status::InternalServerError),
+    };
 }
 
 #[get("/")]
@@ -39,8 +54,8 @@ async fn get_orders_by_customer(customer: &str) -> Result<Json<Vec<Order>>, Stat
     let orders = Order::orders_by_customer_name(customer).await;
     return match orders {
         Ok(found) => Ok(Json(found)),
-        Err(err) => Err(err)
-    }
+        Err(err) => Err(err),
+    };
 }
 
 #[get("/user?<user>")]
@@ -61,42 +76,34 @@ async fn add_order(
 }
 
 #[put("/<order_id>", format = "json", data = "<order>")]
-async fn update_order(
-    order_id: &str,
-    order: Json<models::OrderModels::Order>,
-) -> Result<JsonStatus<&str>, Status> {
+async fn update_order(order_id: &str, order: Json<models::OrderModels::Order>) -> Jsonstr {
     return controllers::OrderController::update_order(&order_id, order.into_inner()).await;
 }
 
 #[delete("/<order_id>")]
-async fn delete_order(order_id: &str) -> Result<JsonStatus<&str>, Status> {
+async fn delete_order(order_id: &str) -> Jsonstr {
     return controllers::OrderController::delete_order(order_id).await;
 }
 
-//Products
+//Product Actions
 
-//Potential: Add index as query instead of in struct
-/*#[post("/action/<order_id>", format = "json", data = "<action>")]
+#[post("/action/<action>", format = "json", data = "<action_info>")]
 async fn action_product<'a>(
     action_list: &State<ActionList>,
-    order_id: String,
-    action: Json<ActionModels::ActionDTO>,
-) -> Result<JsonStatus<&'a str>, Status> {
-    let action_name = action.action_name.to_owned();
-    let contains = action_exists(&action_name, action_list).await;
+    action: &'a str,
+    action_info: Json<ActionDTO>,
+) -> Result<JsonStatus<&'a str>, JsonStatus<&'a str>> {
+    let contains = action_exists(&action.to_string(), action_list).await;
     match contains {
         true => {
-            let query =
-                controllers::ActionController::action_product(order_id, action.into_inner()).await;
-            match query {
-                Ok(status) => Ok(JsonStatus {
-                    status_code: status.0,
-                    status: true,
-                    message: status.1,
-                }),
-                Err(e) => Err(e),
+            let action_result =
+                ActionController::action_product(action, action_info.into_inner()).await;
+            if action_result.is_some() {
+                Ok(action_result.unwrap())
+            } else {
+                Err(JsonStatus::failure("Failed to action product"))
             }
         }
-        false => Err(Status::NotFound),
+        false => Err(JsonStatus::failure("Unable to find action active")),
     }
-}*/
+}

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use rocket::http::Status;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -7,7 +9,7 @@ use crate::{
     util::JsonUtil::MyThing,
 };
 
-use super::ActionModels::Action;
+use super::ActionModels::{Action, ActionDetails, ActionEnum};
 
 //Using strings to include measurements and symbols ie
 //32x32m || 32cm x 10m || 32x10x30 || 32kg || 320g
@@ -51,20 +53,13 @@ impl ProductModel {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-enum ProductQuantity {
-    Single(Action),
-    Multiple(Vec<Action>),
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct Product {
     #[serde(skip_serializing_if = "Option::is_none")]
     id: Option<MyThing>,
     orderNo: Option<u32>,
     model: PopulatedValue<ProductModel>,
-    //TODO: Update this to conform with new graph edges
-    actions: Option<ProductQuantity>,
+    //TODO: Find way to type this data
+    actions: Option<HashMap<String, ActionEnum>>,
     //JSON Data that can be read by a customized frontend for product differences
     customizations: Option<Value>,
 }
